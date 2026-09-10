@@ -1,0 +1,1009 @@
+{
+  "sourceUrl": "https://www.agroads.com.ar/seccion.asp?subcat=36&tipotransaccion=alquiler",
+  "scrapedAt": "2026-09-10T18:38:10.206Z",
+  "count": 60,
+  "listings": [
+    {
+      "id": "1092178",
+      "title": "Campo Alquiler 143 Ha Punta Indio",
+      "price": 19,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1092178",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/af5595e657414ee186218b2fa36ec45e.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1088953",
+      "title": "Campo Mixto Alquiler Tandil 3900 Ha",
+      "price": 25,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088953",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/433b07e87fef445cabc70b264ba4d2fa.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1083795",
+      "title": "Campo Alquiler Sobre Ruta 29 Rauch 470 Ha",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1083795",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/a4591ae639664c4a88ca3861f5a4b705.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1081892",
+      "title": "Campo Mixto Alquiler las Flores 1100 Ha PB",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1081892",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/1a0777af9a4543b99376758d23d19c6b.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1088761",
+      "title": "Campo Agricola Alquiler Loma Verde",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088761",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/e882af52a1484b4db47ff1f455de65fa.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1088164",
+      "title": "Campo Agricola ALQ 140 Ha Loma Verde",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088164",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/67bc70895fb746e9a8633499568d70f9.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1087456",
+      "title": "Arriendo de 1.360 Ha Nuevo Roma, Bahia Blanca",
+      "price": 70,
+      "agency": "GIROTTI SERVICIOS INMOBILIARIOS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1087456",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/fedbd063251147c7aa4881e64c13d90e.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1026306",
+      "title": "Alquiler de Campo en Gral Belgrano - 4600 Ha",
+      "price": 130,
+      "agency": "OBARRIO IDOYAGA & Asoc. SRL",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1026306",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/1f7eefecddf94fcfa842e511abed8e9f.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1086517",
+      "title": "131 Has. en Arrendamiento en Felipe Yofre (corrientes)",
+      "price": null,
+      "agency": "LUIS PICCARDO & ASOCIADOS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1086517",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/d85bde0043f74834b1eaed8675e43cfa.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1086084",
+      "title": "Campo 1000ha Ganadero en Arrendamiento",
+      "price": null,
+      "agency": "Muñoz Propiedades",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1086084",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/699c8238f0bf4c6baaa2d68a1c5aa8b7.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1080578",
+      "title": "Capitalización 4000 Vacas Campo Disponible",
+      "price": null,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1080578",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/066b0e000e024db9beaedbbec759f862.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1077712",
+      "title": "Alquilo 310 Has Agrícolas el Fortin Cordoba",
+      "price": null,
+      "agency": "MONTE MAIZ MAQUINARIAS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1077712",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/d123c5df09b2420b8d65d059533cee39.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1087867",
+      "title": "Alquiler Ganadero Beazley (san Luis) 7000 Has",
+      "price": 16,
+      "agency": "SAN LUIS TIERRAS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1087867",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/629eff089e214cb48e6f88e025517615.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1080310",
+      "title": "Galpon en Alquiler en Lima Sobre Ruta 1800 M2",
+      "price": 4000,
+      "agency": "LAGOUARDE PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1080310",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/bad8e10f3d434b139f5fc8abf05f87af.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1085559",
+      "title": "Atención Propietarios Santa FE. Buscamos Campos para Alquila",
+      "price": null,
+      "agency": "LA HERRADURA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1085559",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/a70111963fed4bf39aff923663520ecd.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1092029",
+      "title": "Campo Alfalfado, Listo para Hacer Rollos, Winifreda, LP",
+      "price": null,
+      "agency": "elpuenteam",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1092029",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/32c7085e456049da90a6ae3c3712d07d.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1091683",
+      "title": "Arrendamiento Estancia San Sebastián – 2.286 Ha Ganaderas en",
+      "price": null,
+      "agency": "FRANCISCOSALARI",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1091683",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/548a498b10a249f38d7e4457d3e1a66d.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1084726",
+      "title": "Doy en Alquiler 6000 Has Ganaderas Excelentes N de la Pampa",
+      "price": 17,
+      "agency": "BALTY",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1084726",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/44443019de4847768cc4bc12f07059c6.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null
+      }
+    },
+    {
+      "id": "1088161",
+      "title": "Campo Mixto Alquiler 3900 Ha Ayacucho",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088161",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/e36c2755f85a4003a9f0094902374e06.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - navigating to \"https://www.agroads.com.ar/detalle.asp?clasi=1088161\", waiting until \"domcontentloaded\"\u001b[22m\n"
+      }
+    },
+    {
+      "id": "1081891",
+      "title": "Campo ALQ Azul 70 Kg 800 Ha DU",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1081891",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/3497d1efd4e84a979f840f45d065680b.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1079555",
+      "title": "Alquila: Campo Ganadero 6000 Hectáreas en Arizona, San Luis",
+      "price": null,
+      "agency": "Savoia Altolaguirre Negocios Inmobiliarios",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1079555",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/f86cadc9ddce4e608f9ae509bcad3a43.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1088760",
+      "title": "Campo Agricola ALQ 140 Ha Loma Verde",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088760",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/7a3bdf2bee0648b7ab28eec74b8e5dc4.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1088163",
+      "title": "Campo Alquiler 470 Ha Sobre Ruta 29",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088163",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/8900854c67a5445e8a12e584e381aa7c.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1088682",
+      "title": "Campo en Alquiler 800 Ha en Entre Ríos",
+      "price": null,
+      "agency": "Hernan Callone - Operaciones Inmobiliarias ",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088682",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/dbfb6fc611c549ab82ed2588f7f3eac5.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1088955",
+      "title": "Campo Alquiler 1100 Ha las Flores",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088955",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/1bcd0eaabc164420be94165fcd296e2f.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1088954",
+      "title": "Campo Alquiler Mixto 1100 Ha las Flores",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088954",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/d4b9c5eb616743a1a8caf0c26193bb32.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1020438",
+      "title": "Alquiler de Campo en Chaco - 2000 Ha",
+      "price": 200,
+      "agency": "OBARRIO IDOYAGA & Asoc. SRL",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1020438",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/0b99d06125924d948dd0bac22b910e4d.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1084710",
+      "title": "Arriendo 3.000 Ha San Luis Limite con Mendoza",
+      "price": 16,
+      "agency": "GIROTTI SERVICIOS INMOBILIARIOS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1084710",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/97b8404727f648689e6a445a0096f02a.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1082131",
+      "title": "1000 HA. Agrícolas en Alquiler",
+      "price": null,
+      "agency": "Puente Campos",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1082131",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/5089e72b0a6b448fbf030504d22e51ee.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1010131",
+      "title": "Arrendamiento Alquiler 1300 Hectareas Campo Ganadero",
+      "price": 7,
+      "agency": " RICARDO BERNAY",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1010131",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/83b4bb7859f8461b9e7cedf8339cbacb.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1070073",
+      "title": "Villa Minetti Disponible Alquiler Agrícola 3700 Ha",
+      "price": 150,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1070073",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/17790e92851c4e3894f2fa6bb0d8157a.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1069524",
+      "title": "En Alquiler 400 Ha Mixto Cria Invernada Eleodoro Lobos San L",
+      "price": 220,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1069524",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/96a8cd3f99e44320ab6216d58db11c40.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1073341",
+      "title": "Campo Ganadero 5560 Ha en SUR de Santiago del Estero",
+      "price": null,
+      "agency": "Hernan Callone - Operaciones Inmobiliarias ",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1073341",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/192d6a084a8843988521fe8244ec2309.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "913588",
+      "title": "Dispongo para Alquilar Campo para 3000 Vacas San Luis",
+      "price": null,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=913588",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/0df7555793df44ecbb02e42d9d80437c.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1048500",
+      "title": "Alquilo. Campo Ganadero. las Avispas",
+      "price": null,
+      "agency": "ACTIVACION RURAL",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1048500",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/1ae83621e04d4ddab1685512583dfcbc.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1060578",
+      "title": "Alquiler Ganadero en Anchorena- 11400 HA- San Luis",
+      "price": null,
+      "agency": "JOSÉ M. ZIMMERMANN - NEGOCIOS INMOBILIARIOS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1060578",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/e01227d5021a4ee9aa3cefd9add48a39.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "640883",
+      "title": "La Pampa - Pedidos de Campos para Arrendamientos Ganaderos",
+      "price": null,
+      "agency": "CAMPOS DE LA PAMPA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=640883",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/c5e5cd35a388425496e1fc45c536ef48.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "640874",
+      "title": "La Pampa - Pedidos de Campos para Arrendamiento Agrícola",
+      "price": null,
+      "agency": "CAMPOS DE LA PAMPA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=640874",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/198ea18072524896949f0f9cd14a3936.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1045517",
+      "title": "En Arrendamiento 1800 Has en la PAZ",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1045517",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/4035b1315530494ebd9035a4b970852d.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1088071",
+      "title": "Arriendo 900 Ha Cria Zona de Isla",
+      "price": null,
+      "agency": "DA SILVA HENRIQUEZ",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1088071",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/50f9257d165f4cf1b033c1ed29f4d5e3.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1079229",
+      "title": "Se Alquilan 48 Ha Agrícolas en Humberto",
+      "price": null,
+      "agency": "Hernán litvvak",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1079229",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/54ba1f59f4674a5e8b1da848953e005f.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1046515",
+      "title": "Aguará Grande, San Cristobal, Santa FE - 7.827 Ha",
+      "price": null,
+      "agency": "Nordheimer Campos y Estancias",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1046515",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/d1c4c83fa9264d73a56c625b184f9715.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1063148",
+      "title": "Alquiler Gral Belgrano/pila 4400 Ha",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1063148",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/4214f569e074454bb43b2a5db4d2e921.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1061633",
+      "title": "Alquiler Gral Belgrano/pila 4400 Ha Ganadero",
+      "price": null,
+      "agency": "PEREZ NAUFEL PROPIEDADES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1061633",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/a5d5421c5ec54134b1e9da0b14206c87.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1089414",
+      "title": "Capitalización 4000 Vacas Campo Disponible San Luis",
+      "price": 100,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1089414",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/7ef08086a9fb488c9dc7b72814f9fe52.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1067363",
+      "title": "Alquier de Campo en Gral. Madariaga - 3400 Ha",
+      "price": 182,
+      "agency": "OBARRIO IDOYAGA & Asoc. SRL",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1067363",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/44b6f49f0668400aa7a340543e186d35.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "744867",
+      "title": "300 Has Ganaderas con Mejoras",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=744867",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/53858ec4743e4c3d83f0d0cbe32b953e.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "795265",
+      "title": "Arrendo 350 Has Ganaderas",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=795265",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/8bbdc237a92c4d94b6b5b1404af14ca6.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "744860",
+      "title": "820 Has Ganaderas en Federal",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=744860",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/b271b1aff7894a899a1aead866e0e800.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "949252",
+      "title": "Arrendo para 100 Novillos",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=949252",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/adb1cb918c0d49049dd5fe6fb3c7a227.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1047470",
+      "title": "Alquilo 1.482 Ganaderas en Departamento San Martin.",
+      "price": null,
+      "agency": "PERUZZI CAMPOS NEGOCIOS RURALES",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1047470",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/895885b3a16b4318b4c7826225f00c96.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1057387",
+      "title": "Campo Ganadero en Alquiler Receptividad 3000 SUR de Córdoba",
+      "price": null,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1057387",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/c674674d55dd41c6a04043fabdb04d31.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1071471",
+      "title": "Alquiler Campo Ganadero de 92,56 Ha en Grutly",
+      "price": 9,
+      "agency": "ACTIVACION RURAL",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1071471",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/bc8dd38b3f414b9c9d8585e26d47e101.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1070595",
+      "title": "Loventue la Pampa Argentina",
+      "price": 700,
+      "agency": "banemarus",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1070595",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/09023ea8dc4547c5949b572e00b06b71.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "871501",
+      "title": "1800 Has Ganaderas en Villaguay",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=871501",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/d1562356fdc24179a85437c733d94d96.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "966117",
+      "title": "750 Has Ganaderas en Alquiler Federal",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=966117",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/874a81f044e541aabad4f14cf6d6815c.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "944397",
+      "title": "700 Has Ganaderas/mixta en Mojones Norte",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=944397",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/c9240b20a69d49bbafc32e526d0585f7.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "655111",
+      "title": "900 Has en la PAZ",
+      "price": null,
+      "agency": "LA ESTANCIA INMOBILIARIA",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=655111",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/000c7654146141d6966fa1b71c9552d7.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "906057",
+      "title": "Busco Campo para Arrendar en Mercedes - Corrientes",
+      "price": null,
+      "agency": "LUIS PICCARDO & ASOCIADOS",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=906057",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/ee20a25143a44889820ab725dd56e9a9.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "id": "1068690",
+      "title": "En Alquiler 1000 Ha Agrícolas Punilla",
+      "price": 180,
+      "agency": "Ariel Rossi Videla",
+      "detailUrl": "https://www.agroads.com.ar/detalle.asp?clasi=1068690",
+      "imageUrl": "https://static2.aastatic.com.ar/files/variants/500/083385faad544588be5c27c0e5fe55c2.webp",
+      "details": {
+        "priceText": null,
+        "surfaceHa": null,
+        "transaction": null,
+        "aptitude": null,
+        "facilities": [],
+        "description": null,
+        "detailError": "page.goto: Target page, context or browser has been closed"
+      }
+    }
+  ]
+}
