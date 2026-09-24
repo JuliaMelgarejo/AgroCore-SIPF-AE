@@ -1,2 +1,13 @@
 node_modules/
 .env
+
+# Datos de fuentes externas: se regeneran con los comandos pnpm fuentes:*
+data/raw/nasa-power/
+data/raw/soilgrids/
+data/raw/magyp-estimaciones-agricolas.csv
+data/raw/noaa-oni.txt
+data/raw/noaa-enso-pronostico.csv
+data/raw/georef-departamentos.json
+data/raw/bcr-pizarra.csv
+data/raw/bcra-tipo-cambio.csv
+data/raw/matba-rofex-futuros.csv
