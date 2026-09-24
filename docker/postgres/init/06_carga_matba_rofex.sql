@@ -1,10 +1,12 @@
 -- Futuros de granos de Matba Rofex (data/raw/matba-rofex-futuros.csv).
--- El archivo lo genera `pnpm fuentes:rofex` con las credenciales del .env;
--- si todavía no existe, este paso se saltea sin error.
+-- El archivo lo genera `pnpm fuentes:rofex` desde la plataforma pública Matriz
+-- (sin cuenta); si todavía no existe, este paso se saltea sin error.
+-- Se puede volver a correr sobre una base ya creada para sumar cierres nuevos.
 
 INSERT INTO fuente_dato (codigo, nombre, url, tipo, notas) VALUES
-    ('matba-rofex-api', 'Matba Rofex - API Primary (futuros de granos)', 'https://apihub.primary.com.ar/', 'api',
-     'Cierre diario = última operación del día. Requiere cuenta con acceso a la API.');
+    ('matba-rofex', 'Matba Rofex - plataforma Matriz (futuros de granos)', 'https://matbarofex.primary.ventures', 'scraping',
+     'Serie diaria pública (modo invitado) de /api/v2/series/securities. API interna del sitio, no documentada. USD/tn, desde 2019.')
+ON CONFLICT (codigo) DO UPDATE SET nombre = EXCLUDED.nombre, url = EXCLUDED.url, tipo = EXCLUDED.tipo, notas = EXCLUDED.notas;
 
 DO $$
 BEGIN
@@ -20,10 +22,11 @@ BEGIN
 
     INSERT INTO precio_grano (fecha, especie_id, mercado, tipo, posicion, plaza, precio, moneda, unidad, fuente_id)
     SELECT s.fecha, e.id, 'MATBA-ROFEX', 'futuro', s.posicion, 'Rosario', s.precio_cierre, 'USD', 'tn',
-           (SELECT id FROM fuente_dato WHERE codigo = 'matba-rofex-api')
+           (SELECT id FROM fuente_dato WHERE codigo = 'matba-rofex')
     FROM stg_rofex s
     JOIN especie e ON e.nombre = s.especie
-    ON CONFLICT DO NOTHING;
+    ON CONFLICT (fecha, especie_id, mercado, tipo, posicion, plaza) DO UPDATE SET precio = EXCLUDED.precio;
 
-    UPDATE fuente_dato SET ultima_carga = now() WHERE codigo = 'matba-rofex-api';
+    DROP TABLE stg_rofex;
+    UPDATE fuente_dato SET ultima_carga = now() WHERE codigo = 'matba-rofex';
 END $$;

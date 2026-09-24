@@ -303,6 +303,29 @@ LEFT JOIN LATERAL (
     ORDER BY t.fecha DESC LIMIT 1
 ) tc ON TRUE;
 
+-- Precio actual de cada futuro vigente (último cierre de cada posición que
+-- todavía no venció). Es lo que usa el cálculo de margen como precio a cosecha.
+CREATE VIEW v_futuro_actual AS
+WITH futuros AS (
+    SELECT pg.*,
+           -- 'MAY27' → 2027-05-01
+           make_date(2000 + right(pg.posicion, 2)::INT,
+                     array_position(ARRAY['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'], left(pg.posicion, 3)),
+                     1) AS mes_vencimiento
+    FROM precio_grano pg
+    WHERE pg.mercado = 'MATBA-ROFEX' AND pg.tipo = 'futuro' AND pg.posicion ~ '^[A-Z]{3}\d{2}$'
+)
+SELECT DISTINCT ON (f.especie_id, f.mes_vencimiento)
+    e.nombre AS especie,
+    f.posicion,
+    f.mes_vencimiento,
+    f.fecha AS fecha_cierre,
+    f.precio AS precio_usd_tn
+FROM futuros f
+JOIN especie e ON e.id = f.especie_id
+WHERE f.mes_vencimiento >= date_trunc('month', current_date)
+ORDER BY f.especie_id, f.mes_vencimiento, f.fecha DESC;
+
 -- Derechos de exportación: cambian seguido y afectan directo el precio que cobra el productor.
 CREATE TABLE derecho_exportacion (
     especie_id          INTEGER NOT NULL REFERENCES especie(id),

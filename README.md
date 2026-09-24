@@ -80,7 +80,7 @@ Comandos:
 - `pnpm fuentes:suelo`: baja los perfiles de SoilGrids (~1,5 h por el límite de la API; se puede cortar y retomar).
 - `pnpm fuentes:precios`: baja precios pizarra de BCR y tipo de cambio del BCRA.
 - Después de cualquiera de estos, `pnpm db:reset` recrea la base con los datos nuevos.
-- `pnpm fuentes:rofex [días]`: baja los futuros de granos de Matba Rofex usando `ROFEX_USER` / `ROFEX_PASSWORD` del `.env` (la cuenta tiene que tener acceso a la API de Primary).
+- `pnpm fuentes:rofex`: baja la serie diaria de los futuros de granos de Matba Rofex (Rosario, desde 2019) desde la plataforma pública Matriz; no necesita cuenta (~5 min).
 - `pnpm db:up`: levanta la base (puerto **5433** para no chocar con un PostgreSQL local en 5432; usuario/clave/base `agrocore`).
 - `pnpm db:reset`: borra el volumen y la vuelve a crear desde los scripts.
 - `pnpm db:psql`: abre una consola `psql` dentro del contenedor.

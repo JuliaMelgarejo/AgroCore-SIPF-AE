@@ -1,110 +1,93 @@
 import fs from "node:fs/promises";
-import axios from "axios";
+import { httpClient } from "../lib/http.js";
+import { esperar } from "./departamentos-agricolas.js";
 
-// Futuros de granos de Matba Rofex a través de la API de Primary
-// (la misma que usan las librerías oficiales pyRofex / jsRofex).
+// Futuros de granos de Matba Rofex desde la plataforma pública "Matriz"
+// (matbarofex.primary.ventures), la misma que se ve en el navegador.
 //
-// Flujo:
-//   1. POST auth/getToken con X-Username / X-Password → header X-Auth-Token
-//   2. GET rest/instruments/all → se quedan los futuros de granos de Rosario
-//      (SOJ.ROS/MAY27, MAI.ROS/ABR27, TRI.ROS/ENE27, ...), sin opciones
-//   3. GET rest/data/getTrades por cada futuro → operaciones del período
-//   4. Se resume a un cierre diario (precio de la última operación del día
-//      y volumen) en data/raw/matba-rofex-futuros.csv, que la base carga en
-//      precio_grano desde docker/postgres/init/06_carga_matba_rofex.sql
+// No hace falta cuenta: en modo invitado la plataforma expone la serie
+// diaria (apertura, máximo, mínimo, cierre, volumen) de cada contrato en
+// /api/v2/series/securities/{id}. Es la API interna del sitio (no una API
+// documentada), así que puede cambiar sin aviso.
 //
-// Las credenciales NO van en el código: se leen del .env (ignorado por git).
-//   ROFEX_USER=...
-//   ROFEX_PASSWORD=...
-//   ROFEX_API_URL=https://api.primary.com.ar/   (opcional; para pruebas: https://api.remarkets.primary.com.ar/)
+// La API de trading de Primary (api.primary.com.ar) exige una cuenta con
+// acceso por API habilitado; un usuario de la plataforma web no sirve ahí
+// (devuelve 401), por eso no se usa.
 //
-// Uso: pnpm fuentes:rofex [días hacia atrás, por defecto 365]
+// Los contratos se identifican como rx_DDA_{GRANO}_ROS_{MES}{AA}
+// (ej. rx_DDA_SOJ_ROS_MAY27 = soja Rosario mayo 2027). Los vencidos siguen
+// respondiendo, así que se prueban todos los meses desde 2018: hay datos
+// desde 2019, cuando se fusionaron Matba y Rofex. Los que no existen
+// vuelven vacíos y se saltean.
+//
+// Salida: data/raw/matba-rofex-futuros.csv (cierre diario en USD/tn), que la
+// base carga en precio_grano desde docker/postgres/init/06_carga_matba_rofex.sql.
+//
+// Uso: pnpm fuentes:rofex
 
-const API_URL = process.env.ROFEX_API_URL ?? "https://api.primary.com.ar/";
-const MARKET_ID = "ROFX";
+const BASE = "https://matbarofex.primary.ventures";
 const DESTINO = "data/raw/matba-rofex-futuros.csv";
+const DESDE_ANIO = 2018;
 
-// Prefijo del símbolo → especie (nombre en la tabla especie)
-const ESPECIES: Record<string, string> = {
+// Prefijo del contrato → especie (nombre en la tabla especie)
+const GRANOS: Record<string, string> = {
   SOJ: "SOJA",
   MAI: "MAIZ",
   TRI: "TRIGO PAN",
   GIR: "GIRASOL",
   SOR: "SORGO",
 };
-// Futuro de Rosario sin strike (las opciones traen " 350 C" / " 350 P" al final)
-const FUTURO_GRANO = /^(SOJ|MAI|TRI|GIR|SOR)\.ROS\/([A-Z]{3}\d{2})$/;
+const MESES = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
 
-type Instrumento = { instrumentId: { marketId: string; symbol: string } };
-type Trade = { price: number; size: number; datetime: string };
+type Vela = { d: string; o: number; h: number; l: number; c: number; v: number };
 
-async function obtenerToken(usuario: string, clave: string): Promise<string> {
-  const response = await axios.post(new URL("auth/getToken", API_URL).toString(), null, {
-    headers: { "X-Username": usuario, "X-Password": clave },
-    timeout: 30_000,
-  });
-  const token = response.headers["x-auth-token"];
-  if (!token) throw new Error("La API no devolvió X-Auth-Token (¿la cuenta tiene habilitado el acceso por API?)");
-  return token;
-}
-
-function fechaIso(d: Date) {
-  return d.toISOString().slice(0, 10);
+async function serieDiaria(id: string, hasta: string): Promise<Vela[]> {
+  for (let intento = 1; ; intento++) {
+    try {
+      const { data } = await httpClient.get<{ series?: Vela[] }>(`${BASE}/api/v2/series/securities/${id}`, {
+        params: { resolution: "D", from: `${DESDE_ANIO}-01-01T00:00:00.000Z`, to: hasta },
+        timeout: 60_000,
+      });
+      return data.series ?? [];
+    } catch (error) {
+      if (intento >= 3) throw error;
+      await esperar(5_000 * intento);
+    }
+  }
 }
 
 async function main() {
-  const usuario = process.env.ROFEX_USER;
-  const clave = process.env.ROFEX_PASSWORD;
-  if (!usuario || !clave) {
-    throw new Error("Faltan ROFEX_USER / ROFEX_PASSWORD en el .env");
-  }
-  const dias = Number(process.argv[2] ?? 365);
+  const hoy = new Date();
+  const hasta = hoy.toISOString();
+  const ultimoAnio = hoy.getFullYear() + 2; // se negocian posiciones hasta ~2 años adelante
 
-  const token = await obtenerToken(usuario, clave);
-  const api = axios.create({ baseURL: API_URL, headers: { "X-Auth-Token": token }, timeout: 60_000 });
-
-  const { data: instrumentos } = await api.get<{ instruments: Instrumento[] }>("rest/instruments/all");
-  const futuros = instrumentos.instruments
-    .map((i) => i.instrumentId)
-    .filter((i) => i.marketId === MARKET_ID && FUTURO_GRANO.test(i.symbol))
-    .map((i) => i.symbol);
-  console.log(`${futuros.length} futuros de granos encontrados`);
-
-  const hasta = new Date();
-  const desde = new Date(hasta.getTime() - dias * 86_400_000);
   const filas = ["fecha,especie,posicion,simbolo,precio_cierre,volumen"];
-
-  for (const simbolo of futuros) {
-    const [, prefijo, posicion] = simbolo.match(FUTURO_GRANO)!;
-    const { data } = await api.get<{ status: string; trades?: Trade[] }>("rest/data/getTrades", {
-      params: { marketId: MARKET_ID, symbol: simbolo, dateFrom: fechaIso(desde), dateTo: fechaIso(hasta) },
-    });
-    const trades = data.trades ?? [];
-
-    // Cierre diario = precio de la última operación del día; volumen = suma de contratos
-    const porDia = new Map<string, { ultimo: Trade; volumen: number }>();
-    for (const t of trades) {
-      const dia = t.datetime.slice(0, 10);
-      const actual = porDia.get(dia);
-      if (!actual) porDia.set(dia, { ultimo: t, volumen: t.size });
-      else {
-        actual.volumen += t.size;
-        if (t.datetime > actual.ultimo.datetime) actual.ultimo = t;
+  for (const [grano, especie] of Object.entries(GRANOS)) {
+    let contratos = 0;
+    let dias = 0;
+    for (let anio = DESDE_ANIO; anio <= ultimoAnio; anio++) {
+      for (const mes of MESES) {
+        const posicion = `${mes}${String(anio).slice(2)}`;
+        const id = `rx_DDA_${grano}_ROS_${posicion}`;
+        const velas = await serieDiaria(id, hasta);
+        await esperar(200);
+        if (!velas.length) continue;
+        contratos++;
+        for (const v of velas) {
+          filas.push([v.d.slice(0, 10), especie, posicion, `${grano}.ROS/${posicion}`, v.c, v.v].join(","));
+          dias++;
+        }
       }
     }
-    for (const [dia, { ultimo, volumen }] of [...porDia].sort()) {
-      filas.push([dia, ESPECIES[prefijo], posicion, simbolo, ultimo.price, volumen].join(","));
-    }
-    console.log(`- ${simbolo}: ${trades.length} operaciones, ${porDia.size} días`);
+    console.log(`- ${especie}: ${contratos} contratos, ${dias} cierres diarios`);
   }
 
   await fs.mkdir("data/raw", { recursive: true });
   await fs.writeFile(DESTINO, filas.join("\n") + "\n", "utf-8");
-  console.log(`\n${filas.length - 1} cierres diarios → ${DESTINO} (recargar la base con pnpm db:reset)`);
+  console.log(`\n${filas.length - 1} cierres → ${DESTINO} (recargar la base con pnpm db:reset)`);
 }
 
 main().catch((error: unknown) => {
-  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-  console.error("Error con la API de Matba Rofex:", status ? `HTTP ${status}` : error instanceof Error ? error.message : error);
+  console.error("Error con Matba Rofex:", error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });
