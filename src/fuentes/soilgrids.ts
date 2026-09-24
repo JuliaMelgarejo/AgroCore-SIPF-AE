@@ -12,8 +12,8 @@ import { departamentosAgricolas, esperar, type DepartamentoAgricola } from "./de
 // data/raw/soilgrids/ para poder cortar y retomar. La base lo carga en
 // suelo_perfil / suelo_horizonte desde 07_carga_clima_suelo.sql.
 //
-// Ojo: el centroide puede caer en una ciudad o laguna, donde SoilGrids no
-// tiene dato; esos perfiles quedan sin cargar.
+// Si el centroide cae en una ciudad o laguna (SoilGrids sin dato), se usa
+// el punto cercano más próximo que tenga suelo; ver DESPLAZAMIENTOS.
 
 const URL = "https://rest.isric.org/soilgrids/v2.0/properties/query";
 const PROPIEDADES = ["clay", "silt", "sand", "soc", "phh2o", "cec", "bdod", "nitrogen"];
@@ -31,23 +31,51 @@ async function esperarTurno() {
   await esperar(turno - ahora);
 }
 
-async function bajar(d: DepartamentoAgricola) {
-  const params = new URLSearchParams({ lon: String(d.lon), lat: String(d.lat), value: "mean" });
+// Si el centroide cae en una ciudad o en agua, SoilGrids devuelve valores
+// vacíos. Se prueban puntos cercanos (~5, 10 y 20 km en 4 direcciones)
+// hasta encontrar suelo, y se guarda el punto realmente usado.
+const DESPLAZAMIENTOS: [number, number][] = [[0, 0]];
+for (const r of [0.05, 0.1, 0.2]) DESPLAZAMIENTOS.push([r, 0], [-r, 0], [0, r], [0, -r]);
+
+type RespuestaSoilGrids = { properties: { layers: { name: string; depths: { values: { mean: number | null } }[] }[] } };
+
+function tieneDatos(r: RespuestaSoilGrids) {
+  const arcilla = r.properties.layers.find((l) => l.name === "clay");
+  return !!arcilla && arcilla.depths.slice(0, 3).every((x) => x.values.mean !== null);
+}
+
+async function consultar(lat: number, lon: number): Promise<RespuestaSoilGrids> {
+  const params = new URLSearchParams({ lon: String(lon), lat: String(lat), value: "mean" });
   PROPIEDADES.forEach((p) => params.append("property", p));
   PROFUNDIDADES.forEach((p) => params.append("depth", p));
 
   for (let intento = 1; ; intento++) {
     await esperarTurno();
     try {
-      const { data } = await axios.get(`${URL}?${params}`, { timeout: 300_000 });
-      await fs.writeFile(`${DIR}/${d.id}.json`, JSON.stringify({ departamento_id: d.id, lat: d.lat, lon: d.lon, respuesta: data }), "utf-8");
-      return;
+      return (await axios.get<RespuestaSoilGrids>(`${URL}?${params}`, { timeout: 300_000 })).data;
     } catch (error) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
       if (intento >= 5) throw new Error(status ? `HTTP ${status}` : error instanceof Error ? error.message : String(error));
       await esperar(status === 429 ? 60_000 : 15_000 * intento);
     }
   }
+}
+
+async function bajar(d: DepartamentoAgricola) {
+  let ultima: RespuestaSoilGrids | null = null;
+  for (const [dLat, dLon] of DESPLAZAMIENTOS) {
+    const lat = +(d.lat + dLat).toFixed(5);
+    const lon = +(d.lon + dLon).toFixed(5);
+    ultima = await consultar(lat, lon);
+    if (tieneDatos(ultima)) {
+      const desplazado = dLat !== 0 || dLon !== 0;
+      await fs.writeFile(`${DIR}/${d.id}.json`, JSON.stringify({ departamento_id: d.id, lat, lon, desplazado, respuesta: ultima }), "utf-8");
+      return desplazado ? `ok (punto desplazado ${dLat},${dLon}°)` : "ok";
+    }
+  }
+  // Ningún punto cercano tiene dato: se guarda igual para no volver a pedirlo en cada corrida
+  await fs.writeFile(`${DIR}/${d.id}.json`, JSON.stringify({ departamento_id: d.id, lat: d.lat, lon: d.lon, respuesta: ultima }), "utf-8");
+  return "sin datos en SoilGrids";
 }
 
 async function main() {
@@ -62,8 +90,8 @@ async function main() {
   await Promise.all(Array.from({ length: EN_PARALELO }, async () => {
     for (let d = cola.shift(); d; d = cola.shift()) {
       try {
-        await bajar(d);
-        console.log(`[${++listos}] ${d.id} ${d.nombre}: ok`);
+        const resultado = await bajar(d);
+        console.log(`[${++listos}] ${d.id} ${d.nombre}: ${resultado}`);
       } catch (error) {
         errores.push(d.id);
         console.log(`[${++listos}] ${d.id} ${d.nombre}: ERROR ${error instanceof Error ? error.message : error}`);
