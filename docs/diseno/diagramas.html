@@ -1,0 +1,4128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIPF-AE · DSD y DCD (servicios)</title>
+<style>
+  :root { --bg:#f6f7f4; --panel:#ffffff; --ink:#1d2a24; --muted:#5d6b63; --line:#d9ded8; --accent:#2f6b4f; --accent-soft:#e6f0ea; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .layout { display:grid; grid-template-columns: 290px minmax(0,1fr); min-height:100vh; }
+  nav { background:var(--panel); border-right:1px solid var(--line); padding:18px 12px; position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 8px 2px; }
+  nav p { margin:0 8px 14px; color:var(--muted); font-size:12.5px; }
+  nav button { display:block; width:100%; text-align:left; border:0; background:none; padding:7px 8px; border-radius:6px; cursor:pointer; font:inherit; font-size:13.5px; color:var(--ink); }
+  nav button:hover { background:var(--accent-soft); }
+  nav button.on { background:var(--accent); color:#fff; }
+  nav button b { font-weight:600; margin-right:6px; }
+  main { padding:26px 30px 60px; min-width:0; }
+  h2 { margin:0 0 4px; font-size:22px; }
+  .meta { color:var(--muted); margin:0 0 18px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:0 0 18px; }
+  section h3 { margin:0 0 10px; font-size:16px; color:var(--accent); }
+  section ul { margin:0; padding-left:20px; }
+  .diagram { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .diagram svg { max-width:none !important; height:auto; }
+  .diagram.fit svg { width:100% !important; max-width:100% !important; }
+  .tools { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .tools button { border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 10px; cursor:pointer; font:inherit; font-size:13px; }
+  .tools button:hover { border-color:var(--accent); color:var(--accent); }
+  details { margin-top:10px; }
+  summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  pre { background:#f1f3ef; border-radius:8px; padding:12px; overflow:auto; font:12.5px/1.45 Consolas, monospace; }
+  .err { color:#a12626; white-space:pre-wrap; font:12.5px Consolas, monospace; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; } main { padding:16px; } }
+  @media print { nav, .tools, details { display:none; } .layout { display:block; } section { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav>
+    <h1>SIPF-AE · DSD y DCD</h1>
+    <p>Diagramas de secuencia y de clases de diseño por caso de uso (pautas Diseño de Sistemas, UTN FRRo).</p>
+    <div id="menu"></div>
+  </nav>
+  <main id="main"></main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>window.CU = [];</script>
+<script>
+// CUU01 a CUU07 – Acceso, suscripciones y campañas
+window.CU.push({
+  id: 'CUU01', nombre: 'Iniciar sesión', controlador: 'ControladorIniciarSesion',
+  supuestos: [
+    'La credencial obligatoria faltante (2.a) la valida la UI antes de enviar el evento.',
+    'El controlador deja disponible para la vista el objeto usuarioLogueado (model de Spring MVC); la UI le pide las prestaciones para mostrarlas.',
+    'El envío del correo de restablecimiento (2.c.2) se delega a un servicio de infraestructura que no se modela.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – iniciarSesion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorIniciarSesion
+participant UD as uDao:«Repository» UsuarioDao
+participant U as u:Usuario
+participant S as suscripcionActual:Suscripcion
+participant P as plan:Plan
+Note over UI: UI recibe del actor: email + password
+UI->>+C: iniciarSesion(email : String, password : String)
+C->>+UD: buscarPorEmail(email : String)
+Note right of UD: JPQL: SELECT u FROM Usuario u WHERE u.email = ?1
+UD-->>-C: «u : Usuario»
+Note over C: respuesta = "No se puede autenticar al usuario"
+opt u IS NOT NULL
+  C->>+U: validarAcceso(password : String)
+  Note right of U: accesoValido = (this.password == password) AND (estado == "habilitada")
+  U-->>-C: «accesoValido : Boolean»
+  alt accesoValido == true
+    C->>+U: tieneSuscripcionVigente()
+    U->>+S: estaVigente()
+    Note right of S: vigente = (estado == "activa") AND (fechaFin >= date())
+    S-->>-U: «vigente : Boolean»
+    U-->>-C: «vigente : Boolean»
+    alt vigente == true
+      Note over C: usuarioLogueado = u. respuesta = "Sesión iniciada"
+    else vigente == false
+      Note over C: respuesta = "Suscripción vencida o cancelada: puede contratar o cambiar de plan"
+    end
+  else accesoValido == false
+    C->>+U: getEstado()
+    U-->>-C: «estado : String»
+    Note over C: respuesta = "Credenciales inválidas" o "Cuenta inhabilitada: canales de asistencia", según estado
+  end
+end
+C-->>-UI: «respuesta : String»
+opt respuesta == "Sesión iniciada"
+  UI->>+U: getPrestacionesHabilitadas()
+  U->>+S: getPrestaciones()
+  S->>+P: getPrestaciones()
+  P-->>-S: «prestaciones : String[*]»
+  S-->>-U: «prestaciones : String[*]»
+  U-->>-UI: «prestaciones : String[*]»
+end
+Note over UI: UI muestra al actor: respuesta + prestaciones
+` },
+    { titulo: 'Evento 2 – solicitarRestablecimiento (alternativa 2.c)', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorIniciarSesion
+participant UD as uDao:«Repository» UsuarioDao
+participant U as u:Usuario
+Note over UI: UI recibe del actor: email
+UI->>+C: solicitarRestablecimiento(email : String)
+C->>+UD: buscarPorEmail(email : String)
+UD-->>-C: «u : Usuario»
+opt u IS NOT NULL
+  C->>+U: generarTokenRestablecimiento()
+  Note right of U: tokenRestablecimiento = nuevo token, vencimientoToken = date() + 1 día
+  U-->>-C: «token : String»
+  C->>+UD: save(u : Usuario)
+  UD-->>-C:
+end
+C-->>-UI: «token : String»
+Note over UI: UI muestra al actor: "Se enviaron las instrucciones al correo informado"
+` },
+    { titulo: 'Evento 3 – establecerNuevaPassword (alternativa 2.c)', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorIniciarSesion
+participant UD as uDao:«Repository» UsuarioDao
+participant U as u:Usuario
+Note over UI: UI recibe del actor: token + nuevaPassword
+UI->>+C: establecerNuevaPassword(token : String, nuevaPassword : String)
+C->>+UD: buscarPorToken(token : String)
+Note right of UD: JPQL: SELECT u FROM Usuario u WHERE u.tokenRestablecimiento = ?1
+UD-->>-C: «u : Usuario»
+Note over C: cambiada = false
+opt u IS NOT NULL
+  C->>+U: cambiarPassword(token : String, nuevaPassword : String)
+  Note right of U: Si vencimientoToken >= date(): password = nuevaPassword, tokenRestablecimiento = NULL
+  U-->>-C: «cambiada : Boolean»
+  opt cambiada == true
+    C->>+UD: save(u : Usuario)
+    UD-->>-C:
+  end
+end
+C-->>-UI: «cambiada : Boolean»
+Note over UI: UI muestra al actor: resultado y reinicia la autenticación (Evento 1)
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorIniciarSesion {
+  +iniciarSesion(email : String, password : String) String
+  +solicitarRestablecimiento(email : String) String
+  +establecerNuevaPassword(token : String, nuevaPassword : String) Boolean
+}
+class UsuarioDao {
+  <<Repository>>
+  +buscarPorEmail(email : String) Usuario
+  +buscarPorToken(token : String) Usuario
+  +save(u : Usuario)
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  -email : String
+  -password : String
+  -estado : String
+  -tokenRestablecimiento : String
+  -vencimientoToken : Date
+  +validarAcceso(password : String) Boolean
+  +getEstado() String
+  +tieneSuscripcionVigente() Boolean
+  +getPrestacionesHabilitadas() String[*]
+  +generarTokenRestablecimiento() String
+  +cambiarPassword(token : String, nuevaPassword : String) Boolean
+}
+class Suscripcion {
+  -estado : String
+  -fechaFin : Date
+  +estaVigente() Boolean
+  +getPrestaciones() String[*]
+}
+class Plan {
+  -prestaciones : String[*]
+  +getPrestaciones() String[*]
+}
+ControladorIniciarSesion "*" --> "0..1 -uDao" UsuarioDao
+ControladorIniciarSesion "*" --> "0..1 -usuarioLogueado" Usuario
+UsuarioDao ..> Usuario
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+`
+});
+
+window.CU.push({
+  id: 'CUU02', nombre: 'Registrarse', controlador: 'ControladorRegistrarse',
+  supuestos: [
+    'La pasarela de pagos es un sistema externo: se accede mediante la interfaz «Service» PasarelaPago, que devuelve un ResultadoPago (estado: confirmado, rechazado o pendiente).',
+    'Si la pasarela no confirma (4.b), la cuenta y la suscripción se guardan en estado "pendiente" para conciliar luego esa misma operación; no se genera otro cobro.',
+    'El contador de usuarios activos por plan se obtiene por consulta (no se almacena como atributo).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – ingresarDatosRegistro', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarse
+participant UD as uDao:«Repository» UsuarioDao
+participant PD as pDao:«Repository» PlanDao
+Note over UI: UI recibe del actor: nombre + email + password + aceptación de condiciones
+UI->>+C: ingresarDatosRegistro(nombre : String, email : String, password : String)
+C->>+UD: buscarPorEmail(email : String)
+Note right of UD: JPQL: SELECT u FROM Usuario u WHERE u.email = ?1
+UD-->>-C: «existente : Usuario»
+opt existente IS NULL
+  create participant NU as nuevoUsuario:Usuario
+  C-->>NU: create(nombre : String, email : String, password : String)
+  Note right of NU: estado = "pendiente", fechaAceptacion = date()
+  C->>+PD: findAll()
+  PD-->>-C: «planes : Plan[*]»
+end
+C-->>-UI: «planes : Plan[*]»
+participant PL as planes[i]:Plan
+alt planes IS NOT NULL
+  loop Para cada p en planes
+    UI->>+PL: getIdPlan()
+    PL-->>-UI: «idPlan : Integer»
+    UI->>+PL: getNombre()
+    PL-->>-UI: «nombre : String»
+    UI->>+PL: getPrecio()
+    PL-->>-UI: «precio : Real»
+  end
+  Note over UI: UI muestra al actor: idPlan + nombre + precio de cada plan
+else planes IS NULL
+  Note over UI: UI muestra al actor: "Ya existe una cuenta equivalente"
+end
+` },
+    { titulo: 'Evento 2 – seleccionarPlan', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarse
+participant PD as pDao:«Repository» PlanDao
+participant PS as planSeleccionado:Plan
+Note over UI: UI recibe del actor: idPlan
+UI->>+C: seleccionarPlan(idPlan : Integer)
+C->>+PD: getOne(idPlan : Integer)
+PD-->>-C: «planSeleccionado : Plan»
+C-->>-UI: «planSeleccionado : Plan»
+UI->>+PS: getPrecio()
+PS-->>-UI: «precio : Real»
+Note over UI: UI muestra al actor: precio a pagar
+` },
+    { titulo: 'Evento 3 – autorizarPago', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarse
+participant PS as planSeleccionado:Plan
+participant PP as pasarela:«Service» PasarelaPago
+participant RP as res:ResultadoPago
+participant NU as nuevoUsuario:Usuario
+Note over UI: UI recibe del actor: datosMedioPago
+UI->>+C: autorizarPago(datosMedioPago : String)
+C->>+PS: getPrecio()
+PS-->>-C: «precio : Real»
+C->>+PP: solicitarPago(precio : Real, datosMedioPago : String)
+PP-->>-C: «res : ResultadoPago»
+C->>+RP: getEstado()
+RP-->>-C: «estadoPago : String»
+alt estadoPago == "rechazado"
+  Note over C: respuesta = "Pago rechazado: puede autorizar otro medio de pago"
+else estadoPago != "rechazado"
+  C->>+NU: suscribir(planSeleccionado : Plan, res : ResultadoPago)
+  create participant S as s:Suscripcion
+  NU-->>S: create(planSeleccionado : Plan, res : ResultadoPago)
+  Note right of S: estado = "activa" si el pago está confirmado, "pendiente" si no hubo confirmación
+  create participant PGS as «multiobjeto» pagos:Pago
+  S-->>PGS: create()
+  create participant PG as pg:Pago
+  S-->>PG: create(precio : Real, res : ResultadoPago)
+  S->>+PGS: add(pg : Pago)
+  PGS-->>-S:
+  Note right of NU: suscripcionActual = s, estado = "habilitada" si s está activa
+  NU-->>-C:
+  participant UD as uDao:«Repository» UsuarioDao
+  C->>+UD: save(nuevoUsuario : Usuario)
+  UD-->>-C:
+  Note over C: respuesta = "Cuenta habilitada" u "Operación pendiente de confirmación"
+end
+C-->>-UI: «respuesta : String»
+Note over UI: UI muestra al actor: respuesta
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarse {
+  +ingresarDatosRegistro(nombre : String, email : String, password : String) Plan[*]
+  +seleccionarPlan(idPlan : Integer) Plan
+  +autorizarPago(datosMedioPago : String) String
+}
+class UsuarioDao {
+  <<Repository>>
+  +buscarPorEmail(email : String) Usuario
+  +save(u : Usuario)
+}
+class PlanDao {
+  <<Repository>>
+  +findAll() Plan[*]
+  +getOne(idPlan : Integer) Plan
+}
+class PasarelaPago {
+  <<Service>>
+  +solicitarPago(monto : Real, datosMedioPago : String) ResultadoPago
+}
+class ResultadoPago {
+  -estado : String
+  -referencia : String
+  +getEstado() String
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -email : String
+  -password : String
+  -estado : String
+  -fechaAceptacion : Date
+  +create(nombre : String, email : String, password : String)
+  +suscribir(p : Plan, res : ResultadoPago)
+}
+class Suscripcion {
+  -estado : String
+  -fechaInicio : Date
+  +create(p : Plan, res : ResultadoPago)
+}
+class Pago {
+  -monto : Real
+  -fecha : Date
+  -estado : String
+  -referencia : String
+  +create(monto : Real, res : ResultadoPago)
+}
+class Plan {
+  -idPlan : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -precio : Real
+  +getIdPlan() Integer
+  +getNombre() String
+  +getPrecio() Real
+}
+ControladorRegistrarse "*" --> "0..1 -uDao" UsuarioDao
+ControladorRegistrarse "*" --> "0..1 -pDao" PlanDao
+ControladorRegistrarse "*" --> "0..1 -pasarela" PasarelaPago
+ControladorRegistrarse "1" --> "0..1 -nuevoUsuario" Usuario
+ControladorRegistrarse "*" --> "0..1 -planSeleccionado" Plan
+ControladorRegistrarse ..> ResultadoPago
+PasarelaPago ..> ResultadoPago
+UsuarioDao ..> Usuario
+PlanDao ..> Plan
+Usuario ..> ResultadoPago
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+Suscripcion "1" *--> "1..* -pagos" Pago
+`
+});
+
+window.CU.push({
+  id: 'CUU03', nombre: 'Cambiar de plan', controlador: 'ControladorCambiarPlan',
+  supuestos: [
+    'El usuario está autenticado: el controlador lo conoce por el rol usuarioLogueado.',
+    'El efecto económico (ajuste) lo calcula la Suscripcion comparando el precio del plan actual con el nuevo. Si el ajuste es 0 o negativo no se solicita pago.',
+    'ajuste y nuevoPlan se guardan como variables de instancia del controlador porque se usan en el evento siguiente.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – consultarPlanes', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCambiarPlan
+participant PD as pDao:«Repository» PlanDao
+participant PL as planes[i]:Plan
+Note over UI: UI recibe del actor: ""
+UI->>+C: consultarPlanes()
+C->>+PD: findAll()
+PD-->>-C: «planes : Plan[*]»
+C-->>-UI: «planes : Plan[*]»
+loop Para cada p en planes
+  UI->>+PL: getIdPlan()
+  PL-->>-UI: «idPlan : Integer»
+  UI->>+PL: getNombre()
+  PL-->>-UI: «nombre : String»
+  UI->>+PL: getPrestaciones()
+  PL-->>-UI: «prestaciones : String[*]»
+  UI->>+PL: getPrecio()
+  PL-->>-UI: «precio : Real»
+end
+Note over UI: UI muestra al actor: idPlan + nombre + prestaciones + precio de cada plan
+` },
+    { titulo: 'Evento 2 – seleccionarPlan', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCambiarPlan
+participant PD as pDao:«Repository» PlanDao
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+participant PA as plan:Plan
+participant NP as nuevoPlan:Plan
+Note over UI: UI recibe del actor: idPlan
+UI->>+C: seleccionarPlan(idPlan : Integer)
+C->>+PD: getOne(idPlan : Integer)
+PD-->>-C: «nuevoPlan : Plan»
+C->>+U: calcularAjusteCambio(nuevoPlan : Plan)
+U->>+S: calcularAjuste(nuevoPlan : Plan)
+alt nuevoPlan != plan
+  S->>+PA: getPrecio()
+  PA-->>-S: «precioActual : Real»
+  S->>+NP: getPrecio()
+  NP-->>-S: «precioNuevo : Real»
+  Note right of S: ajuste = precioNuevo - precioActual
+else nuevoPlan == plan
+  Note right of S: ajuste = NULL (la suscripción no requiere cambios)
+end
+S-->>-U: «ajuste : Real»
+U-->>-C: «ajuste : Real»
+C-->>-UI: «ajuste : Real»
+Note over UI: UI muestra al actor: ajuste a pagar, o "Ya posee ese plan" si ajuste IS NULL
+` },
+    { titulo: 'Evento 3 – confirmarCambio', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCambiarPlan
+participant PP as pasarela:«Service» PasarelaPago
+participant RP as res:ResultadoPago
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+participant PGS as «multiobjeto» pagos:Pago
+participant UD as uDao:«Repository» UsuarioDao
+Note over UI: UI recibe del actor: datosMedioPago
+UI->>+C: confirmarCambio(datosMedioPago : String)
+Note over C: estadoPago = "sin cargo"
+opt ajuste > 0
+  C->>+PP: solicitarPago(ajuste : Real, datosMedioPago : String)
+  PP-->>-C: «res : ResultadoPago»
+  C->>+RP: getEstado()
+  RP-->>-C: «estadoPago : String»
+end
+alt estadoPago == "rechazado"
+  Note over C: respuesta = "Pago rechazado: se conserva el plan vigente"
+else estadoPago == "pendiente"
+  C->>+U: registrarCambioPendiente(nuevoPlan : Plan)
+  U->>+S: registrarCambioPendiente(nuevoPlan : Plan)
+  Note right of S: planPendiente = nuevoPlan (el plan vigente no cambia)
+  S-->>-U:
+  U-->>-C:
+  C->>+UD: save(usuarioLogueado : Usuario)
+  UD-->>-C:
+  Note over C: respuesta = "Cambio pendiente de conciliación"
+else estadoPago == "confirmado" OR estadoPago == "sin cargo"
+  C->>+U: cambiarPlan(nuevoPlan : Plan, ajuste : Real)
+  U->>+S: cambiarPlan(nuevoPlan : Plan, ajuste : Real)
+  Note right of S: plan = nuevoPlan, fechaCambio = date()
+  opt ajuste > 0
+    create participant PG as pg:Pago
+    S-->>PG: create(ajuste : Real)
+    S->>+PGS: add(pg : Pago)
+    PGS-->>-S:
+  end
+  S-->>-U:
+  U-->>-C:
+  C->>+UD: save(usuarioLogueado : Usuario)
+  UD-->>-C:
+  Note over C: respuesta = "Plan actualizado"
+end
+C-->>-UI: «respuesta : String»
+Note over UI: UI muestra al actor: respuesta + nuevo plan y prestaciones habilitadas
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorCambiarPlan {
+  -ajuste : Real
+  +consultarPlanes() Plan[*]
+  +seleccionarPlan(idPlan : Integer) Real
+  +confirmarCambio(datosMedioPago : String) String
+}
+class PlanDao {
+  <<Repository>>
+  +findAll() Plan[*]
+  +getOne(idPlan : Integer) Plan
+}
+class UsuarioDao {
+  <<Repository>>
+  +save(u : Usuario)
+}
+class PasarelaPago {
+  <<Service>>
+  +solicitarPago(monto : Real, datosMedioPago : String) ResultadoPago
+}
+class ResultadoPago {
+  -estado : String
+  +getEstado() String
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +calcularAjusteCambio(nuevoPlan : Plan) Real
+  +cambiarPlan(nuevoPlan : Plan, ajuste : Real)
+  +registrarCambioPendiente(nuevoPlan : Plan)
+}
+class Suscripcion {
+  -fechaCambio : Date
+  +calcularAjuste(nuevoPlan : Plan) Real
+  +cambiarPlan(nuevoPlan : Plan, ajuste : Real)
+  +registrarCambioPendiente(nuevoPlan : Plan)
+}
+class Pago {
+  -monto : Real
+  -fecha : Date
+  +create(monto : Real)
+}
+class Plan {
+  -idPlan : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -precio : Real
+  -prestaciones : String[*]
+  +getIdPlan() Integer
+  +getNombre() String
+  +getPrestaciones() String[*]
+  +getPrecio() Real
+}
+ControladorCambiarPlan "*" --> "0..1 -pDao" PlanDao
+ControladorCambiarPlan "*" --> "0..1 -uDao" UsuarioDao
+ControladorCambiarPlan "*" --> "0..1 -pasarela" PasarelaPago
+ControladorCambiarPlan "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorCambiarPlan "*" --> "0..1 -nuevoPlan" Plan
+ControladorCambiarPlan ..> ResultadoPago
+PasarelaPago ..> ResultadoPago
+PlanDao ..> Plan
+UsuarioDao ..> Usuario
+Usuario ..> Plan
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+Suscripcion "*" --> "0..1 -planPendiente" Plan
+Suscripcion "1" *--> "1..* -pagos" Pago
+`
+});
+
+window.CU.push({
+  id: 'CUU04', nombre: 'Cancelar suscripción', controlador: 'ControladorCancelarSuscripcion',
+  supuestos: [
+    'Si el usuario no confirma (3.a) la UI no envía el evento confirmarCancelacion y la suscripción queda sin cambios.',
+    'La fecha efectiva de la cancelación es el fin del período ya abonado (fechaFin).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – solicitarCancelacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCancelarSuscripcion
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+Note over UI: UI recibe del actor: ""
+UI->>+C: solicitarCancelacion()
+C->>+U: getFechaEfectivaCancelacion()
+U->>+S: getFechaFin()
+S-->>-U: «fechaFin : Date»
+U-->>-C: «fechaEfectiva : Date»
+C-->>-UI: «fechaEfectiva : Date»
+Note over UI: UI muestra al actor: fechaEfectiva + consecuencias sobre el acceso y la renovación
+` },
+    { titulo: 'Evento 2 – confirmarCancelacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCancelarSuscripcion
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+participant UD as uDao:«Repository» UsuarioDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarCancelacion()
+C->>+U: cancelarSuscripcion()
+U->>+S: cancelar()
+Note right of S: estado = "cancelada", renovacionAutomatica = false, fechaBaja = date()
+S-->>-U:
+U-->>-C:
+C->>+UD: save(usuarioLogueado : Usuario)
+UD-->>-C:
+C-->>-UI: «usuarioLogueado : Usuario»
+Note over UI: UI muestra al actor: "La baja quedó registrada"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorCancelarSuscripcion {
+  +solicitarCancelacion() Date
+  +confirmarCancelacion() Usuario
+}
+class UsuarioDao {
+  <<Repository>>
+  +save(u : Usuario)
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +getFechaEfectivaCancelacion() Date
+  +cancelarSuscripcion()
+}
+class Suscripcion {
+  -estado : String
+  -fechaFin : Date
+  -renovacionAutomatica : Boolean
+  -fechaBaja : Date
+  +getFechaFin() Date
+  +cancelar()
+}
+ControladorCancelarSuscripcion "*" --> "0..1 -uDao" UsuarioDao
+ControladorCancelarSuscripcion "*" --> "0..1 -usuarioLogueado" Usuario
+UsuarioDao ..> Usuario
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+`
+});
+
+window.CU.push({
+  id: 'CUU05', nombre: 'Registrar una campaña agrícola', controlador: 'ControladorRegistrarCampania',
+  supuestos: [
+    'El límite de campañas (1 en Básico, 5 en Profesional, sin límite en Empresarial) no se escribe fijo en el DSD: es el atributo limiteCampanias de Plan (NULL = sin límite).',
+    'campaniaActual se guarda como variable de instancia del controlador para persistirla recién cuando el usuario confirma (Evento 2).',
+    'Los datos obligatorios incompletos (2.c) los controla la UI; las relaciones inválidas (2.d) las valida el dominio (cultivar de otra especie, lote ajeno).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – ingresarDatosCampania', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarCampania
+participant CD as cDao:«Repository» CampaniaDao
+participant AC as «multiobjeto» activas:Campania
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+participant P as plan:Plan
+participant LD as lDao:«Repository» LoteDao
+participant ED as eDao:«Repository» EspecieDao
+participant VD as cvDao:«Repository» CultivarDao
+participant L as lote:Lote
+participant CV as cultivar:Cultivar
+Note over UI: UI recibe del actor: nombre + fechaInicio + idLote + idEspecie + idCultivar + fechaSiembra + densidad
+UI->>+C: ingresarDatosCampania(nombre : String, fechaInicio : Date, idLote : Integer, idEspecie : Integer, idCultivar : Integer, fechaSiembra : Date, densidad : Real)
+C->>+CD: buscarActivasPorUsuario(usuarioLogueado : Usuario)
+Note right of CD: JPQL: SELECT c FROM Campania c WHERE c.usuario = ?1 AND c.estado = 'activa'
+CD-->>-C: «activas : Campania[*]»
+C->>+AC: size()
+AC-->>-C: «cantActivas : Integer»
+C->>+U: admiteNuevaCampania(cantActivas : Integer)
+U->>+S: admiteNuevaCampania(cantActivas : Integer)
+S->>+P: getLimiteCampanias()
+P-->>-S: «limiteCampanias : Integer»
+Note right of S: admite = (limiteCampanias IS NULL) OR (cantActivas < limiteCampanias)
+S-->>-U: «admite : Boolean»
+U-->>-C: «admite : Boolean»
+opt admite == true
+  C->>+LD: getOne(idLote : Integer)
+  LD-->>-C: «lote : Lote»
+  C->>+ED: getOne(idEspecie : Integer)
+  ED-->>-C: «especie : Especie»
+  C->>+VD: getOne(idCultivar : Integer)
+  VD-->>-C: «cultivar : Cultivar»
+  C->>+L: perteneceA(usuarioLogueado : Usuario)
+  L-->>-C: «loteAccesible : Boolean»
+  C->>+CV: esDeEspecie(especie : Especie)
+  CV-->>-C: «compatible : Boolean»
+  opt loteAccesible == true AND compatible == true
+    create participant CA as campaniaActual:Campania
+    C-->>CA: create(nombre : String, fechaInicio : Date, usuarioLogueado : Usuario)
+    create participant LCS as «multiobjeto» lotesCampania:LoteCampania
+    CA-->>LCS: create()
+    C->>+CA: agregarLote(lote : Lote, especie : Especie, cultivar : Cultivar, fechaSiembra : Date, densidad : Real)
+    create participant LC as lc:LoteCampania
+    CA-->>LC: create(lote : Lote, especie : Especie, cultivar : Cultivar, fechaSiembra : Date, densidad : Real)
+    CA->>+LCS: add(lc : LoteCampania)
+    LCS-->>-CA:
+    CA-->>-C:
+  end
+end
+C-->>-UI: «campaniaActual : Campania»
+Note over UI: UI muestra al actor: datos validados para confirmar. Si campaniaActual IS NULL: "Se alcanzó el límite del plan" o los datos a corregir
+` },
+    { titulo: 'Evento 2 – confirmarCampania', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarCampania
+participant CD as cDao:«Repository» CampaniaDao
+participant CA as campaniaActual:Campania
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarCampania()
+C->>+CD: save(campaniaActual : Campania)
+CD-->>-C:
+C-->>-UI: «campaniaActual : Campania»
+UI->>+CA: getIdCampania()
+CA-->>-UI: «idCampania : Integer»
+Note over UI: UI muestra al actor: idCampania
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarCampania {
+  +ingresarDatosCampania(nombre : String, fechaInicio : Date, idLote : Integer, idEspecie : Integer, idCultivar : Integer, fechaSiembra : Date, densidad : Real) Campania
+  +confirmarCampania() Campania
+}
+class CampaniaDao {
+  <<Repository>>
+  +buscarActivasPorUsuario(u : Usuario) Campania[*]
+  +save(c : Campania)
+}
+class LoteDao {
+  <<Repository>>
+  +getOne(idLote : Integer) Lote
+}
+class EspecieDao {
+  <<Repository>>
+  +getOne(idEspecie : Integer) Especie
+}
+class CultivarDao {
+  <<Repository>>
+  +getOne(idCultivar : Integer) Cultivar
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +admiteNuevaCampania(cantActivas : Integer) Boolean
+}
+class Suscripcion {
+  +admiteNuevaCampania(cantActivas : Integer) Boolean
+}
+class Plan {
+  -limiteCampanias : Integer
+  +getLimiteCampanias() Integer
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -fechaInicio : Date
+  -estado : String
+  +create(nombre : String, fechaInicio : Date, u : Usuario)
+  +agregarLote(l : Lote, e : Especie, cv : Cultivar, fechaSiembra : Date, densidad : Real)
+  +getIdCampania() Integer
+}
+class LoteCampania {
+  -fechaSiembra : Date
+  -densidad : Real
+  +create(l : Lote, e : Especie, cv : Cultivar, fechaSiembra : Date, densidad : Real)
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+  +perteneceA(u : Usuario) Boolean
+}
+class Especie {
+  -idEspecie : Integer = {@Id @GeneratedValue}
+}
+class Cultivar {
+  -idCultivar : Integer = {@Id @GeneratedValue}
+  +esDeEspecie(e : Especie) Boolean
+}
+ControladorRegistrarCampania "*" --> "0..1 -cDao" CampaniaDao
+ControladorRegistrarCampania "*" --> "0..1 -lDao" LoteDao
+ControladorRegistrarCampania "*" --> "0..1 -eDao" EspecieDao
+ControladorRegistrarCampania "*" --> "0..1 -cvDao" CultivarDao
+ControladorRegistrarCampania "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorRegistrarCampania "1" --> "0..1 -campaniaActual" Campania
+ControladorRegistrarCampania ..> Lote
+ControladorRegistrarCampania ..> Especie
+ControladorRegistrarCampania ..> Cultivar
+CampaniaDao ..> Campania
+LoteDao ..> Lote
+EspecieDao ..> Especie
+CultivarDao ..> Cultivar
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+Campania "*" --> "1 -usuario" Usuario
+Campania "1" *--> "1..* -lotesCampania" LoteCampania
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -especie" Especie
+LoteCampania "*" --> "1 -cultivar" Cultivar
+Cultivar "*" --> "1 -especie" Especie
+`
+});
+
+window.CU.push({
+  id: 'CUU06', nombre: 'Consultar los resultados de una campaña', controlador: 'ControladorConsultarResultados',
+  supuestos: [
+    'Los resultados de una campaña son sus predicciones (simulaciones guardadas por CUU16).',
+    'Los formatos de reporte habilitados son un atributo de Plan (formatosHabilitados), no un valor fijo.',
+    'El Reporte no se persiste: se genera para la descarga (igual que en CUU23).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – consultarCampanias', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarResultados
+participant CD as cDao:«Repository» CampaniaDao
+participant CS as campanias[i]:Campania
+Note over UI: UI recibe del actor: ""
+UI->>+C: consultarCampanias()
+C->>+CD: buscarPorUsuario(usuarioLogueado : Usuario)
+Note right of CD: JPQL: SELECT c FROM Campania c WHERE c.usuario = ?1
+CD-->>-C: «campanias : Campania[*]»
+C-->>-UI: «campanias : Campania[*]»
+alt campanias IS NOT EMPTY
+  loop Para cada c en campanias
+    UI->>+CS: getIdCampania()
+    CS-->>-UI: «idCampania : Integer»
+    UI->>+CS: getNombre()
+    CS-->>-UI: «nombre : String»
+  end
+  Note over UI: UI muestra al actor: idCampania + nombre de cada campaña
+else campanias IS EMPTY
+  Note over UI: UI muestra al actor: "No tiene campañas registradas"
+end
+` },
+    { titulo: 'Evento 2 – seleccionarCampania', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarResultados
+participant CD as cDao:«Repository» CampaniaDao
+participant PD as pdDao:«Repository» PrediccionDao
+participant PS as predicciones[i]:Prediccion
+Note over UI: UI recibe del actor: idCampania
+UI->>+C: seleccionarCampania(idCampania : Integer)
+C->>+CD: getOne(idCampania : Integer)
+CD-->>-C: «campaniaActual : Campania»
+C->>+PD: buscarPorCampania(campaniaActual : Campania)
+Note right of PD: JPQL: SELECT p FROM Prediccion p WHERE p.loteCampania.campania = ?1
+PD-->>-C: «predicciones : Prediccion[*]»
+C-->>-UI: «predicciones : Prediccion[*]»
+alt predicciones IS NOT EMPTY
+  loop Para cada p en predicciones
+    UI->>+PS: getNombreEscenario()
+    PS-->>-UI: «nombreEscenario : String»
+    UI->>+PS: getRendimientoP50()
+    PS-->>-UI: «rendimientoP50 : Real»
+    UI->>+PS: getMargen()
+    PS-->>-UI: «margen : Real»
+  end
+  Note over UI: UI muestra al actor: nombreEscenario + rendimientoP50 + margen de cada resultado
+else predicciones IS EMPTY
+  Note over UI: UI muestra al actor: "La campaña no posee resultados disponibles"
+end
+` },
+    { titulo: 'Evento 3 – solicitarReporte', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarResultados
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+participant P as plan:Plan
+participant FS as «multiobjeto» formatosHabilitados:String
+Note over UI: UI recibe del actor: formato
+UI->>+C: solicitarReporte(formato : String)
+C->>+U: habilitaFormato(formato : String)
+U->>+S: habilitaFormato(formato : String)
+S->>+P: habilitaFormato(formato : String)
+P->>+FS: contains(formato : String)
+FS-->>-P: «habilitado : Boolean»
+P-->>-S: «habilitado : Boolean»
+S-->>-U: «habilitado : Boolean»
+U-->>-C: «habilitado : Boolean»
+opt habilitado == true
+  create participant R as r:Reporte
+  C-->>R: create(formato : String)
+  Note right of R: fecha = date()
+  create participant IT as «multiobjeto» resultados:Prediccion
+  R-->>IT: create()
+  loop Para cada p en predicciones
+    C->>+R: agregarResultado(p : Prediccion)
+    R->>+IT: add(p : Prediccion)
+    IT-->>-R:
+    R-->>-C:
+  end
+end
+C-->>-UI: «r : Reporte»
+alt r IS NOT NULL
+  UI->>+R: getArchivo()
+  Note right of R: Arma el archivo con entradas, resultados, unidades, fuentes y supuestos de cada resultado
+  R-->>-UI: «archivo : String»
+  Note over UI: UI muestra al actor: archivo para descargar
+else r IS NULL
+  UI->>+P: getFormatosHabilitados()
+  P-->>-UI: «formatosHabilitados : String[*]»
+  Note over UI: UI muestra al actor: formatos disponibles para elegir otro
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorConsultarResultados {
+  +consultarCampanias() Campania[*]
+  +seleccionarCampania(idCampania : Integer) Prediccion[*]
+  +solicitarReporte(formato : String) Reporte
+}
+class CampaniaDao {
+  <<Repository>>
+  +buscarPorUsuario(u : Usuario) Campania[*]
+  +getOne(idCampania : Integer) Campania
+}
+class PrediccionDao {
+  <<Repository>>
+  +buscarPorCampania(c : Campania) Prediccion[*]
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +habilitaFormato(formato : String) Boolean
+}
+class Suscripcion {
+  +habilitaFormato(formato : String) Boolean
+}
+class Plan {
+  -formatosHabilitados : String[*]
+  +habilitaFormato(formato : String) Boolean
+  +getFormatosHabilitados() String[*]
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  +getIdCampania() Integer
+  +getNombre() String
+}
+class LoteCampania
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -nombreEscenario : String
+  -rendimientoP50 : Real
+  -margen : Real
+  +getNombreEscenario() String
+  +getRendimientoP50() Real
+  +getMargen() Real
+}
+class Reporte {
+  -formato : String
+  -fecha : Date
+  +create(formato : String)
+  +agregarResultado(p : Prediccion)
+  +getArchivo() String
+}
+ControladorConsultarResultados "*" --> "0..1 -cDao" CampaniaDao
+ControladorConsultarResultados "*" --> "0..1 -pdDao" PrediccionDao
+ControladorConsultarResultados "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorConsultarResultados "*" --> "0..1 -campaniaActual" Campania
+ControladorConsultarResultados "*" --> "* -predicciones" Prediccion
+ControladorConsultarResultados ..> Reporte
+CampaniaDao ..> Campania
+PrediccionDao ..> Prediccion
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+Campania "*" --> "1 -usuario" Usuario
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+LoteCampania "*" --> "1 -campania" Campania
+Reporte "*" --> "* -resultados" Prediccion
+`
+});
+
+window.CU.push({
+  id: 'CUU07', nombre: 'Contratar una suscripción', controlador: 'ControladorContratarSuscripcion',
+  supuestos: [
+    'La pasarela de pagos (actor secundario) se accede por la interfaz «Service» PasarelaPago.',
+    'Para no duplicar cobros (5.a) se busca el Pago por la referencia que informa la pasarela antes de crear la suscripción.',
+    'Pago tiene DAO propio solo por esa búsqueda específica. La suscripción y sus pagos se guardan al guardar el Usuario.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – consultarPlanes', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorContratarSuscripcion
+participant PD as pDao:«Repository» PlanDao
+participant PL as planes[i]:Plan
+Note over UI: UI recibe del actor: ""
+UI->>+C: consultarPlanes()
+C->>+PD: findAll()
+PD-->>-C: «planes : Plan[*]»
+C-->>-UI: «planes : Plan[*]»
+loop Para cada p en planes
+  UI->>+PL: getIdPlan()
+  PL-->>-UI: «idPlan : Integer»
+  UI->>+PL: getPrestaciones()
+  PL-->>-UI: «prestaciones : String[*]»
+  UI->>+PL: getLimiteCampanias()
+  PL-->>-UI: «limiteCampanias : Integer»
+  UI->>+PL: getPrecio()
+  PL-->>-UI: «precio : Real»
+  UI->>+PL: getPeriodoFacturacion()
+  PL-->>-UI: «periodoFacturacion : String»
+end
+Note over UI: UI muestra al actor: prestaciones + límites + precio + período de facturación de cada plan
+` },
+    { titulo: 'Evento 2 – contratarPlan', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorContratarSuscripcion
+participant PD as pDao:«Repository» PlanDao
+participant PS as planSeleccionado:Plan
+participant PP as pasarela:«Service» PasarelaPago
+participant RP as res:ResultadoPago
+participant GD as pgDao:«Repository» PagoDao
+participant U as usuarioLogueado:Usuario
+participant UD as uDao:«Repository» UsuarioDao
+Note over UI: UI recibe del actor: idPlan + aceptación de condiciones + datosMedioPago
+UI->>+C: contratarPlan(idPlan : Integer, datosMedioPago : String)
+C->>+PD: getOne(idPlan : Integer)
+PD-->>-C: «planSeleccionado : Plan»
+C->>+PS: getPrecio()
+PS-->>-C: «precio : Real»
+C->>+PP: solicitarPago(precio : Real, datosMedioPago : String)
+PP-->>-C: «res : ResultadoPago»
+C->>+RP: getEstado()
+RP-->>-C: «estadoPago : String»
+alt estadoPago == "rechazado"
+  Note over C: respuesta = "Pago rechazado: la suscripción no se activa"
+else estadoPago == "pendiente"
+  Note over C: respuesta = "Operación pendiente: no se activa la suscripción ni se inicia otro cobro"
+else estadoPago == "confirmado"
+  C->>+RP: getReferencia()
+  RP-->>-C: «referencia : String»
+  C->>+GD: buscarPorReferencia(referencia : String)
+  Note right of GD: JPQL: SELECT p FROM Pago p WHERE p.referencia = ?1
+  GD-->>-C: «pagoExistente : Pago»
+  opt pagoExistente IS NULL
+    C->>+U: suscribir(planSeleccionado : Plan, res : ResultadoPago)
+    create participant S as s:Suscripcion
+    U-->>S: create(planSeleccionado : Plan, res : ResultadoPago)
+    Note right of S: estado = "activa", fechaInicio = date(), fechaFin según periodoFacturacion
+    create participant PGS as «multiobjeto» pagos:Pago
+    S-->>PGS: create()
+    create participant PG as pg:Pago
+    S-->>PG: create(precio : Real, res : ResultadoPago)
+    S->>+PGS: add(pg : Pago)
+    PGS-->>-S:
+    U-->>-C:
+    C->>+UD: save(usuarioLogueado : Usuario)
+    UD-->>-C:
+  end
+  Note over C: respuesta = "Suscripción activa" (sin duplicar el cobro si el pago ya estaba registrado)
+end
+C-->>-UI: «respuesta : String»
+Note over UI: UI muestra al actor: respuesta + prestaciones habilitadas
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorContratarSuscripcion {
+  +consultarPlanes() Plan[*]
+  +contratarPlan(idPlan : Integer, datosMedioPago : String) String
+}
+class PlanDao {
+  <<Repository>>
+  +findAll() Plan[*]
+  +getOne(idPlan : Integer) Plan
+}
+class PagoDao {
+  <<Repository>>
+  +buscarPorReferencia(referencia : String) Pago
+}
+class UsuarioDao {
+  <<Repository>>
+  +save(u : Usuario)
+}
+class PasarelaPago {
+  <<Service>>
+  +solicitarPago(monto : Real, datosMedioPago : String) ResultadoPago
+}
+class ResultadoPago {
+  -estado : String
+  -referencia : String
+  +getEstado() String
+  +getReferencia() String
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +suscribir(p : Plan, res : ResultadoPago)
+}
+class Suscripcion {
+  -estado : String
+  -fechaInicio : Date
+  -fechaFin : Date
+  +create(p : Plan, res : ResultadoPago)
+}
+class Pago {
+  -idPago : Integer = {@Id @GeneratedValue}
+  -monto : Real
+  -fecha : Date
+  -referencia : String
+  +create(monto : Real, res : ResultadoPago)
+}
+class Plan {
+  -idPlan : Integer = {@Id @GeneratedValue}
+  -prestaciones : String[*]
+  -limiteCampanias : Integer
+  -precio : Real
+  -periodoFacturacion : String
+  +getIdPlan() Integer
+  +getPrestaciones() String[*]
+  +getLimiteCampanias() Integer
+  +getPrecio() Real
+  +getPeriodoFacturacion() String
+}
+ControladorContratarSuscripcion "*" --> "0..1 -pDao" PlanDao
+ControladorContratarSuscripcion "*" --> "0..1 -pgDao" PagoDao
+ControladorContratarSuscripcion "*" --> "0..1 -uDao" UsuarioDao
+ControladorContratarSuscripcion "*" --> "0..1 -pasarela" PasarelaPago
+ControladorContratarSuscripcion "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorContratarSuscripcion ..> Plan
+ControladorContratarSuscripcion ..> ResultadoPago
+ControladorContratarSuscripcion ..> Pago
+PasarelaPago ..> ResultadoPago
+PlanDao ..> Plan
+PagoDao ..> Pago
+UsuarioDao ..> Usuario
+Usuario ..> ResultadoPago
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+Suscripcion "1" *--> "1..* -pagos" Pago
+`
+});
+
+</script>
+<script>
+window.CU.push({
+  id: 'CUU08',
+  nombre: 'Registrar un establecimiento productivo',
+  controlador: 'ControladorRegistrarEstablecimiento',
+  supuestos: [
+    'El usuario ya está autenticado (precondición): el controlador lo conoce por la asociación con rol usuarioLogueado, sin buscarlo en un DAO.',
+    'La validación de campos obligatorios vacíos es responsabilidad de la UI (vista); el controlador valida la existencia del departamento.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – iniciarRegistro', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarEstablecimiento
+participant DD as dDao:«Repository» DepartamentoDao
+participant DS as departamentos[i]:Departamento
+Note over UI: UI recibe del actor: ""
+UI->>+C: iniciarRegistro()
+C->>+DD: findAll()
+DD-->>-C: «departamentos : Departamento[*]»
+C-->>-UI: «departamentos : Departamento[*]»
+loop Para cada d en departamentos
+  UI->>+DS: getIdDepartamento()
+  DS-->>-UI: «idDepartamento : Integer»
+  UI->>+DS: getNombre()
+  DS-->>-UI: «nombre : String»
+end
+Note over UI: UI muestra al actor: idDepartamento + nombre de cada departamento
+` },
+    { titulo: 'Evento 2 – registrarEstablecimiento', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarEstablecimiento
+participant DD as dDao:«Repository» DepartamentoDao
+participant ED as eDao:«Repository» EstablecimientoDao
+Note over UI: UI recibe del actor: nombre + idDepartamento
+UI->>+C: registrarEstablecimiento(nombre : String, idDepartamento : Integer)
+C->>+DD: existsById(idDepartamento : Integer)
+DD-->>-C: «existe : Boolean»
+opt existe == true
+  C->>+DD: getOne(idDepartamento : Integer)
+  DD-->>-C: «d : Departamento»
+  create participant E as e:Establecimiento
+  C-->>E: create(nombre : String, d : Departamento, usuarioLogueado : Usuario)
+  C->>+ED: save(e : Establecimiento)
+  ED-->>-C:
+end
+C-->>-UI: «e : Establecimiento»
+alt e IS NOT NULL
+  UI->>+E: getIdEstablecimiento()
+  E-->>-UI: «idEstablecimiento : Integer»
+  Note over UI: UI muestra al actor: idEstablecimiento
+else e IS NULL
+  Note over UI: UI muestra al actor: "El departamento no existe, corrija los datos"
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarEstablecimiento {
+  +iniciarRegistro() Departamento[*]
+  +registrarEstablecimiento(nombre : String, idDepartamento : Integer) Establecimiento
+}
+class DepartamentoDao {
+  <<Repository>>
+  +findAll() Departamento[*]
+  +existsById(idDepartamento : Integer) Boolean
+  +getOne(idDepartamento : Integer) Departamento
+}
+class EstablecimientoDao {
+  <<Repository>>
+  +save(e : Establecimiento)
+}
+class Establecimiento {
+  -idEstablecimiento : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  +create(nombre : String, d : Departamento, u : Usuario)
+  +getIdEstablecimiento() Integer
+}
+class Departamento {
+  -idDepartamento : Integer = {@Id}
+  -nombre : String
+  +getIdDepartamento() Integer
+  +getNombre() String
+}
+class Usuario
+ControladorRegistrarEstablecimiento "*" --> "0..1 -dDao" DepartamentoDao
+ControladorRegistrarEstablecimiento "*" --> "0..1 -eDao" EstablecimientoDao
+ControladorRegistrarEstablecimiento "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorRegistrarEstablecimiento ..> Establecimiento
+ControladorRegistrarEstablecimiento ..> Departamento
+DepartamentoDao ..> Departamento
+EstablecimientoDao ..> Establecimiento
+Establecimiento "*" --> "1 -departamento" Departamento
+Establecimiento "*" --> "1 -usuario" Usuario
+`
+});
+
+</script>
+<script>
+// CUU09 a CUU14 – Base productiva, planificación e insumos
+window.CU.push({
+  id: 'CUU09', nombre: 'Registrar un lote', controlador: 'ControladorRegistrarLote',
+  supuestos: [
+    'loteActual y establecimientoActual son variables de instancia del controlador: el lote se crea en memoria en el Evento 1 y se persiste recién al confirmar (Evento 2).',
+    'Las referencias de suelo y clima se buscan por ubicación en sus DAO. Si no existen, el lote se guarda con esa referencia pendiente (3.a).',
+    'El contorno se representa como texto (geometría serializada).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – ingresarDatosLote', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarLote
+participant ED as eDao:«Repository» EstablecimientoDao
+participant E as establecimientoActual:Establecimiento
+participant SD as spDao:«Repository» SueloPerfilDao
+participant KD as ccDao:«Repository» CeldaClimaDao
+Note over UI: UI recibe del actor: idEstablecimiento + nombre + latitud + longitud + superficieHa + tenencia + contorno
+UI->>+C: ingresarDatosLote(idEstablecimiento : Integer, nombre : String, latitud : Real, longitud : Real, superficieHa : Real, tenencia : String, contorno : String)
+C->>+ED: getOne(idEstablecimiento : Integer)
+ED-->>-C: «establecimientoActual : Establecimiento»
+C->>+E: perteneceA(usuarioLogueado : Usuario)
+E-->>-C: «autorizado : Boolean»
+opt autorizado == true
+  create participant L as loteActual:Lote
+  C-->>L: create(establecimientoActual : Establecimiento, nombre : String, latitud : Real, longitud : Real, superficieHa : Real, tenencia : String, contorno : String)
+  C->>+L: esValido()
+  Note right of L: valido = (superficieHa > 0) AND (latitud y longitud dentro de rango)
+  L-->>-C: «valido : Boolean»
+  opt valido == true
+    C->>+SD: buscarPorUbicacion(latitud : Real, longitud : Real)
+    Note right of SD: JPQL: SELECT s FROM SueloPerfil s WHERE ?1 BETWEEN s.latMin AND s.latMax AND ?2 BETWEEN s.lonMin AND s.lonMax
+    SD-->>-C: «perfil : SueloPerfil»
+    C->>+KD: buscarPorUbicacion(latitud : Real, longitud : Real)
+    Note right of KD: JPQL: SELECT k FROM CeldaClima k WHERE ?1 BETWEEN k.latMin AND k.latMax AND ?2 BETWEEN k.lonMin AND k.lonMax
+    KD-->>-C: «celda : CeldaClima»
+    C->>+L: asignarReferencias(perfil : SueloPerfil, celda : CeldaClima)
+    L-->>-C:
+  end
+end
+C-->>-UI: «loteActual : Lote»
+alt loteActual IS NOT NULL
+  UI->>+L: esValido()
+  L-->>-UI: «valido : Boolean»
+  UI->>+L: tieneReferenciaSuelo()
+  L-->>-UI: «conSuelo : Boolean»
+  UI->>+L: tieneReferenciaClima()
+  L-->>-UI: «conClima : Boolean»
+  Note over UI: UI muestra al actor: datos declarados + referencias estimadas (o cuál falta) + inconsistencias si valido == false
+else loteActual IS NULL
+  Note over UI: UI muestra al actor: "Operación rechazada" (sin revelar datos del establecimiento)
+end
+` },
+    { titulo: 'Evento 2 – confirmarLote', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarLote
+participant LD as lDao:«Repository» LoteDao
+participant L as loteActual:Lote
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarLote()
+C->>+LD: save(loteActual : Lote)
+LD-->>-C:
+C-->>-UI: «loteActual : Lote»
+UI->>+L: getIdLote()
+L-->>-UI: «idLote : Integer»
+Note over UI: UI muestra al actor: idLote + "Lote registrado"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarLote {
+  +ingresarDatosLote(idEstablecimiento : Integer, nombre : String, latitud : Real, longitud : Real, superficieHa : Real, tenencia : String, contorno : String) Lote
+  +confirmarLote() Lote
+}
+class EstablecimientoDao {
+  <<Repository>>
+  +getOne(idEstablecimiento : Integer) Establecimiento
+}
+class LoteDao {
+  <<Repository>>
+  +save(l : Lote)
+}
+class SueloPerfilDao {
+  <<Repository>>
+  +buscarPorUbicacion(latitud : Real, longitud : Real) SueloPerfil
+}
+class CeldaClimaDao {
+  <<Repository>>
+  +buscarPorUbicacion(latitud : Real, longitud : Real) CeldaClima
+}
+class Establecimiento {
+  -idEstablecimiento : Integer = {@Id @GeneratedValue}
+  +perteneceA(u : Usuario) Boolean
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -latitud : Real
+  -longitud : Real
+  -superficieHa : Real
+  -tenencia : String
+  -contorno : String
+  +create(e : Establecimiento, nombre : String, latitud : Real, longitud : Real, superficieHa : Real, tenencia : String, contorno : String)
+  +esValido() Boolean
+  +asignarReferencias(perfil : SueloPerfil, celda : CeldaClima)
+  +tieneReferenciaSuelo() Boolean
+  +tieneReferenciaClima() Boolean
+  +getIdLote() Integer
+}
+class SueloPerfil {
+  -idSueloPerfil : Integer = {@Id @GeneratedValue}
+  -latMin : Real
+  -latMax : Real
+  -lonMin : Real
+  -lonMax : Real
+}
+class CeldaClima {
+  -idCeldaClima : Integer = {@Id @GeneratedValue}
+  -latMin : Real
+  -latMax : Real
+  -lonMin : Real
+  -lonMax : Real
+}
+class Usuario
+ControladorRegistrarLote "*" --> "0..1 -eDao" EstablecimientoDao
+ControladorRegistrarLote "*" --> "0..1 -lDao" LoteDao
+ControladorRegistrarLote "*" --> "0..1 -spDao" SueloPerfilDao
+ControladorRegistrarLote "*" --> "0..1 -ccDao" CeldaClimaDao
+ControladorRegistrarLote "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorRegistrarLote "*" --> "0..1 -establecimientoActual" Establecimiento
+ControladorRegistrarLote "1" --> "0..1 -loteActual" Lote
+ControladorRegistrarLote ..> SueloPerfil
+ControladorRegistrarLote ..> CeldaClima
+EstablecimientoDao ..> Establecimiento
+LoteDao ..> Lote
+SueloPerfilDao ..> SueloPerfil
+CeldaClimaDao ..> CeldaClima
+Establecimiento "*" --> "1 -usuario" Usuario
+Lote "*" --> "1 -establecimiento" Establecimiento
+Lote "*" --> "0..1 -sueloPerfil" SueloPerfil
+Lote "*" --> "0..1 -celdaClima" CeldaClima
+`
+});
+
+window.CU.push({
+  id: 'CUU10', nombre: 'Definir ambientes de un lote', controlador: 'ControladorDefinirAmbientes',
+  supuestos: [
+    'El evento agregarAmbiente se repite por cada ambiente. Los ambientes se agregan al lote en memoria y solo se persisten al confirmar: si no se confirma, se conserva la distribución anterior.',
+    'El Lote es el experto en información: valida que la superficie sea positiva y que la suma no supere su superficie.',
+    'AmbienteLote no tiene DAO propio: es parte (composición) de Lote y se guarda con LoteDao.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – seleccionarLote', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorDefinirAmbientes
+participant LD as lDao:«Repository» LoteDao
+participant L as loteActual:Lote
+Note over UI: UI recibe del actor: idLote
+UI->>+C: seleccionarLote(idLote : Integer)
+C->>+LD: getOne(idLote : Integer)
+LD-->>-C: «loteActual : Lote»
+C->>+L: perteneceA(usuarioLogueado : Usuario)
+L-->>-C: «autorizado : Boolean»
+opt autorizado == true
+  C->>+L: iniciarDistribucion()
+  create participant AM as «multiobjeto» ambientes:AmbienteLote
+  L-->>AM: create()
+  L-->>-C:
+end
+C-->>-UI: «autorizado : Boolean»
+opt autorizado == true
+  UI->>+L: getSuperficieHa()
+  L-->>-UI: «superficieHa : Real»
+end
+Note over UI: UI muestra al actor: superficieHa del lote (o rechazo si autorizado == false)
+` },
+    { titulo: 'Evento 2 – agregarAmbiente (se repite por cada ambiente)', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorDefinirAmbientes
+participant L as loteActual:Lote
+participant AI as ambientes[i]:AmbienteLote
+participant AM as «multiobjeto» ambientes:AmbienteLote
+Note over UI: UI recibe del actor: nombre + superficieHa + potencialProductivo
+UI->>+C: agregarAmbiente(nombre : String, superficieHa : Real, potencialProductivo : String)
+C->>+L: agregarAmbiente(nombre : String, superficieHa : Real, potencialProductivo : String)
+Note right of L: asignada = 0
+loop Para cada a en ambientes
+  L->>+AI: getSuperficieHa()
+  AI-->>-L: «sup : Real»
+  Note right of L: asignada = asignada + sup
+end
+Note right of L: agregado = (superficieHa > 0) AND (asignada + superficieHa <= this.superficieHa)
+opt agregado == true
+  create participant A as a:AmbienteLote
+  L-->>A: create(nombre : String, superficieHa : Real, potencialProductivo : String)
+  L->>+AM: add(a : AmbienteLote)
+  AM-->>-L:
+end
+L-->>-C: «agregado : Boolean»
+C-->>-UI: «agregado : Boolean»
+UI->>+L: getSuperficieSinAsignar()
+Note right of L: sinAsignar = this.superficieHa - suma de superficieHa de ambientes
+L-->>-UI: «sinAsignar : Real»
+Note over UI: UI muestra al actor: distribución declarada + sinAsignar (o la diferencia a corregir si agregado == false)
+` },
+    { titulo: 'Evento 3 – confirmarDistribucion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorDefinirAmbientes
+participant LD as lDao:«Repository» LoteDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarDistribucion()
+C->>+LD: save(loteActual : Lote)
+LD-->>-C:
+C-->>-UI: «loteActual : Lote»
+Note over UI: UI muestra al actor: "Ambientes registrados" (la superficie sin asignar queda explícita)
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorDefinirAmbientes {
+  +seleccionarLote(idLote : Integer) Boolean
+  +agregarAmbiente(nombre : String, superficieHa : Real, potencialProductivo : String) Boolean
+  +confirmarDistribucion() Lote
+}
+class LoteDao {
+  <<Repository>>
+  +getOne(idLote : Integer) Lote
+  +save(l : Lote)
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+  -superficieHa : Real
+  +perteneceA(u : Usuario) Boolean
+  +iniciarDistribucion()
+  +agregarAmbiente(nombre : String, superficieHa : Real, potencialProductivo : String) Boolean
+  +getSuperficieHa() Real
+  +getSuperficieSinAsignar() Real
+}
+class AmbienteLote {
+  -nombre : String
+  -superficieHa : Real
+  -potencialProductivo : String
+  +create(nombre : String, superficieHa : Real, potencialProductivo : String)
+  +getSuperficieHa() Real
+}
+class Usuario
+ControladorDefinirAmbientes "*" --> "0..1 -lDao" LoteDao
+ControladorDefinirAmbientes "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorDefinirAmbientes "*" --> "0..1 -loteActual" Lote
+LoteDao ..> Lote
+Lote ..> Usuario
+Lote "1" *--> "* -ambientes" AmbienteLote
+`
+});
+
+window.CU.push({
+  id: 'CUU11', nombre: 'Registrar un análisis de suelo', controlador: 'ControladorRegistrarAnalisisSuelo',
+  supuestos: [
+    'Un análisis es un SueloPerfil compuesto por SueloHorizonte (uno por intervalo de profundidad). El evento agregarHorizonte se repite por cada medición.',
+    'Los valores no informados quedan en NULL (no se reemplazan por cero): la UI los identifica al presentar las mediciones.',
+    'El lote conserva el historial de perfiles (rol perfiles) para no perder la referencia usada en simulaciones previas.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – iniciarAnalisis', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarAnalisisSuelo
+participant LD as lDao:«Repository» LoteDao
+participant L as loteActual:Lote
+Note over UI: UI recibe del actor: idLote + fecha + procedencia
+UI->>+C: iniciarAnalisis(idLote : Integer, fecha : Date, procedencia : String)
+C->>+LD: getOne(idLote : Integer)
+LD-->>-C: «loteActual : Lote»
+C->>+L: perteneceA(usuarioLogueado : Usuario)
+L-->>-C: «autorizado : Boolean»
+opt autorizado == true
+  create participant SP as perfilActual:SueloPerfil
+  C-->>SP: create(fecha : Date, procedencia : String)
+  create participant HS as «multiobjeto» horizontes:SueloHorizonte
+  SP-->>HS: create()
+end
+C-->>-UI: «autorizado : Boolean»
+Note over UI: UI muestra al actor: control para el ingreso de mediciones
+` },
+    { titulo: 'Evento 2 – agregarHorizonte (se repite por cada medición)', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarAnalisisSuelo
+participant SP as perfilActual:SueloPerfil
+participant HI as horizontes[i]:SueloHorizonte
+participant HS as «multiobjeto» horizontes:SueloHorizonte
+Note over UI: UI recibe del actor: profDesdeCm + profHastaCm + materiaOrganicaPct + ph + textura
+UI->>+C: agregarHorizonte(profDesdeCm : Real, profHastaCm : Real, materiaOrganicaPct : Real, ph : Real, textura : String)
+C->>+SP: agregarHorizonte(profDesdeCm : Real, profHastaCm : Real, materiaOrganicaPct : Real, ph : Real, textura : String)
+Note right of SP: valido = (profDesdeCm < profHastaCm) AND (valores dentro de los rangos admitidos)
+loop Para cada h en horizontes
+  SP->>+HI: seSuperpone(profDesdeCm : Real, profHastaCm : Real)
+  HI-->>-SP: «superpone : Boolean»
+  Note right of SP: Si superpone == true entonces valido = false
+end
+opt valido == true
+  create participant H as h:SueloHorizonte
+  SP-->>H: create(profDesdeCm : Real, profHastaCm : Real, materiaOrganicaPct : Real, ph : Real, textura : String)
+  SP->>+HS: add(h : SueloHorizonte)
+  HS-->>-SP:
+end
+SP-->>-C: «valido : Boolean»
+C-->>-UI: «valido : Boolean»
+Note over UI: UI muestra al actor: mediciones cargadas y campos no informados (o los campos a corregir si valido == false)
+` },
+    { titulo: 'Evento 3 – confirmarAnalisis', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarAnalisisSuelo
+participant L as loteActual:Lote
+participant PS as «multiobjeto» perfiles:SueloPerfil
+participant LD as lDao:«Repository» LoteDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarAnalisis()
+C->>+L: asociarPerfil(perfilActual : SueloPerfil)
+L->>+PS: add(perfilActual : SueloPerfil)
+PS-->>-L:
+Note right of L: sueloPerfil = perfilActual (perfil vigente)
+L-->>-C:
+C->>+LD: save(loteActual : Lote)
+LD-->>-C:
+C-->>-UI: «perfilActual : SueloPerfil»
+Note over UI: UI muestra al actor: "Análisis registrado y vinculado al lote"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarAnalisisSuelo {
+  +iniciarAnalisis(idLote : Integer, fecha : Date, procedencia : String) Boolean
+  +agregarHorizonte(profDesdeCm : Real, profHastaCm : Real, materiaOrganicaPct : Real, ph : Real, textura : String) Boolean
+  +confirmarAnalisis() SueloPerfil
+}
+class LoteDao {
+  <<Repository>>
+  +getOne(idLote : Integer) Lote
+  +save(l : Lote)
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+  +perteneceA(u : Usuario) Boolean
+  +asociarPerfil(p : SueloPerfil)
+}
+class SueloPerfil {
+  -fecha : Date
+  -procedencia : String
+  +create(fecha : Date, procedencia : String)
+  +agregarHorizonte(profDesdeCm : Real, profHastaCm : Real, materiaOrganicaPct : Real, ph : Real, textura : String) Boolean
+}
+class SueloHorizonte {
+  -profDesdeCm : Real
+  -profHastaCm : Real
+  -materiaOrganicaPct : Real
+  -ph : Real
+  -textura : String
+  +create(profDesdeCm : Real, profHastaCm : Real, materiaOrganicaPct : Real, ph : Real, textura : String)
+  +seSuperpone(profDesdeCm : Real, profHastaCm : Real) Boolean
+}
+class Usuario
+ControladorRegistrarAnalisisSuelo "*" --> "0..1 -lDao" LoteDao
+ControladorRegistrarAnalisisSuelo "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorRegistrarAnalisisSuelo "*" --> "0..1 -loteActual" Lote
+ControladorRegistrarAnalisisSuelo "1" --> "0..1 -perfilActual" SueloPerfil
+LoteDao ..> Lote
+Lote ..> Usuario
+Lote "1" *--> "* -perfiles" SueloPerfil
+Lote "*" --> "0..1 -sueloPerfil" SueloPerfil
+SueloPerfil "1" *--> "1..* -horizontes" SueloHorizonte
+`
+});
+
+window.CU.push({
+  id: 'CUU12', nombre: 'Consultar cultivares y antecedentes de ensayo', controlador: 'ControladorConsultarCultivares',
+  supuestos: [
+    'Es una consulta: no hay save. Los DAO devuelven objetos y la UI les pide los datos que muestra, en un único loop por colección.',
+    'Los campos no informados llegan como NULL y la UI los muestra como "no informado" (un evento transgénico vacío no se interpreta como ausencia demostrada).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – buscarCultivares', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarCultivares
+participant ED as eDao:«Repository» EspecieDao
+participant VD as cvDao:«Repository» CultivarDao
+participant CS as cultivares[i]:Cultivar
+participant F as fuente:FuenteDato
+Note over UI: UI recibe del actor: idEspecie + criterioNombre
+UI->>+C: buscarCultivares(idEspecie : Integer, criterioNombre : String)
+C->>+ED: getOne(idEspecie : Integer)
+ED-->>-C: «especie : Especie»
+C->>+VD: buscarPorEspecieYNombre(especie : Especie, criterioNombre : String)
+Note right of VD: JPQL: SELECT c FROM Cultivar c WHERE c.especie = ?1 AND c.nombre LIKE '%?2%' ORDER BY c.nombre
+VD-->>-C: «cultivares : Cultivar[*]»
+C-->>-UI: «cultivares : Cultivar[*]»
+alt cultivares IS NOT EMPTY
+  loop Para cada cv en cultivares
+    UI->>+CS: getIdCultivar()
+    CS-->>-UI: «idCultivar : Integer»
+    UI->>+CS: getNombre()
+    CS-->>-UI: «nombre : String»
+    UI->>+CS: getFechaActualizacionFuente()
+    CS->>+F: getUltimaCarga()
+    F-->>-CS: «ultimaCarga : Date»
+    CS-->>-UI: «ultimaCarga : Date»
+  end
+  Note over UI: UI muestra al actor: idCultivar + nombre + fecha de actualización de la fuente
+else cultivares IS EMPTY
+  Note over UI: UI muestra al actor: "No existen cultivares coincidentes, modifique los criterios"
+end
+` },
+    { titulo: 'Evento 2 – seleccionarCultivar', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarCultivares
+participant VD as cvDao:«Repository» CultivarDao
+participant CV as cv:Cultivar
+participant EN as ensayos[i]:EnsayoCultivar
+Note over UI: UI recibe del actor: idCultivar
+UI->>+C: seleccionarCultivar(idCultivar : Integer)
+C->>+VD: getOne(idCultivar : Integer)
+VD-->>-C: «cv : Cultivar»
+C-->>-UI: «cv : Cultivar»
+UI->>+CV: getNombre()
+CV-->>-UI: «nombre : String»
+UI->>+CV: getNroRegistro()
+CV-->>-UI: «nroRegistro : String»
+UI->>+CV: getCondicionGenetica()
+CV-->>-UI: «condicionGenetica : String»
+UI->>+CV: getEventosTransgenicos()
+CV-->>-UI: «eventosTransgenicos : String»
+UI->>+CV: getFechaInscripcion()
+CV-->>-UI: «fechaInscripcion : Date»
+UI->>+CV: getEnsayos()
+CV-->>-UI: «ensayos : EnsayoCultivar[*]»
+alt ensayos IS NOT EMPTY
+  loop Para cada e en ensayos
+    UI->>+EN: getLocalidad()
+    EN-->>-UI: «localidad : String»
+    UI->>+EN: getCampania()
+    EN-->>-UI: «campania : String»
+    UI->>+EN: getFuente()
+    EN-->>-UI: «fuente : String»
+  end
+  Note over UI: UI muestra al actor: ficha del cultivar + ensayos (localidad, campaña, fuente)
+else ensayos IS EMPTY
+  Note over UI: UI muestra al actor: ficha del cultivar + "Sin ensayos registrados"
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorConsultarCultivares {
+  +buscarCultivares(idEspecie : Integer, criterioNombre : String) Cultivar[*]
+  +seleccionarCultivar(idCultivar : Integer) Cultivar
+}
+class EspecieDao {
+  <<Repository>>
+  +getOne(idEspecie : Integer) Especie
+}
+class CultivarDao {
+  <<Repository>>
+  +buscarPorEspecieYNombre(e : Especie, criterioNombre : String) Cultivar[*]
+  +getOne(idCultivar : Integer) Cultivar
+}
+class Especie {
+  -idEspecie : Integer = {@Id @GeneratedValue}
+}
+class Cultivar {
+  -idCultivar : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -nroRegistro : String
+  -condicionGenetica : String
+  -eventosTransgenicos : String
+  -fechaInscripcion : Date
+  +getIdCultivar() Integer
+  +getNombre() String
+  +getNroRegistro() String
+  +getCondicionGenetica() String
+  +getEventosTransgenicos() String
+  +getFechaInscripcion() Date
+  +getFechaActualizacionFuente() Date
+  +getEnsayos() EnsayoCultivar[*]
+}
+class EnsayoCultivar {
+  -localidad : String
+  -campania : String
+  -fuente : String
+  +getLocalidad() String
+  +getCampania() String
+  +getFuente() String
+}
+class FuenteDato {
+  -ultimaCarga : Date
+  +getUltimaCarga() Date
+}
+ControladorConsultarCultivares "*" --> "0..1 -eDao" EspecieDao
+ControladorConsultarCultivares "*" --> "0..1 -cvDao" CultivarDao
+ControladorConsultarCultivares ..> Especie
+ControladorConsultarCultivares ..> Cultivar
+EspecieDao ..> Especie
+CultivarDao ..> Cultivar
+CultivarDao ..> Especie
+Cultivar "*" --> "1 -especie" Especie
+Cultivar "*" --> "1 -fuente" FuenteDato
+Cultivar "1" *--> "* -ensayos" EnsayoCultivar
+`
+});
+
+window.CU.push({
+  id: 'CUU13', nombre: 'Modificar la planificación de un lote en una campaña', controlador: 'ControladorModificarPlanificacion',
+  supuestos: [
+    'La planificación es el objeto LoteCampania (relación lote-campaña). Los cambios se aplican en memoria (Evento 2) y solo se persisten al confirmar (Evento 3): si el usuario conserva la planificación anterior no se guarda nada.',
+    'Las predicciones previas no se modifican: cada Prediccion conserva sus propias entradas. fechaModificacion permite distinguir los resultados calculados con datos anteriores.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – seleccionarPlanificacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorModificarPlanificacion
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant LC as lcActual:LoteCampania
+participant CV as cultivar:Cultivar
+Note over UI: UI recibe del actor: idLote + idCampania
+UI->>+C: seleccionarPlanificacion(idLote : Integer, idCampania : Integer)
+C->>+LCD: buscarPorLoteYCampania(idLote : Integer, idCampania : Integer)
+Note right of LCD: JPQL: SELECT lc FROM LoteCampania lc WHERE lc.lote.idLote = ?1 AND lc.campania.idCampania = ?2
+LCD-->>-C: «lcActual : LoteCampania»
+C-->>-UI: «lcActual : LoteCampania»
+UI->>+LC: getNombreCultivar()
+LC->>+CV: getNombre()
+CV-->>-LC: «nombre : String»
+LC-->>-UI: «nombreCultivar : String»
+UI->>+LC: getFechaSiembra()
+LC-->>-UI: «fechaSiembra : Date»
+UI->>+LC: getDensidad()
+LC-->>-UI: «densidad : Real»
+UI->>+LC: getAntecesor()
+LC-->>-UI: «antecesor : String»
+UI->>+LC: getManejo()
+LC-->>-UI: «manejo : String»
+Note over UI: UI muestra al actor: cultivar + fechaSiembra + densidad + antecesor + manejo
+` },
+    { titulo: 'Evento 2 – informarCambios', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorModificarPlanificacion
+participant ED as eDao:«Repository» EspecieDao
+participant VD as cvDao:«Repository» CultivarDao
+participant LC as lcActual:LoteCampania
+participant CV as cultivar:Cultivar
+participant PD as pdDao:«Repository» PrediccionDao
+participant PS as previas[i]:Prediccion
+Note over UI: UI recibe del actor: idEspecie + idCultivar + fechaSiembra + densidad + antecesor + manejo
+UI->>+C: informarCambios(idEspecie : Integer, idCultivar : Integer, fechaSiembra : Date, densidad : Real, antecesor : String, manejo : String)
+C->>+ED: getOne(idEspecie : Integer)
+ED-->>-C: «especie : Especie»
+C->>+VD: getOne(idCultivar : Integer)
+VD-->>-C: «cultivar : Cultivar»
+C->>+LC: actualizarPlanificacion(especie : Especie, cultivar : Cultivar, fechaSiembra : Date, densidad : Real, antecesor : String, manejo : String)
+LC->>+CV: esDeEspecie(especie : Especie)
+CV-->>-LC: «compatible : Boolean»
+Note right of LC: valido = compatible AND (densidad > 0) AND (fechaSiembra dentro de la campaña). Si valido: asigna los datos y fechaModificacion = date()
+LC-->>-C: «valido : Boolean»
+opt valido == true
+  C->>+PD: buscarPorLoteCampania(lcActual : LoteCampania)
+  Note right of PD: JPQL: SELECT p FROM Prediccion p WHERE p.loteCampania = ?1
+  PD-->>-C: «previas : Prediccion[*]»
+end
+C-->>-UI: «previas : Prediccion[*]»
+alt previas IS NOT NULL
+  loop Para cada p en previas
+    UI->>+PS: getNombreEscenario()
+    PS-->>-UI: «nombreEscenario : String»
+    UI->>+PS: getFecha()
+    PS-->>-UI: «fecha : Date»
+  end
+  Note over UI: UI muestra al actor: resultados anteriores que corresponden a otros datos de entrada y solicita confirmación
+else previas IS NULL
+  Note over UI: UI muestra al actor: inconsistencias a corregir (cultivar de otra especie o datos inválidos)
+end
+` },
+    { titulo: 'Evento 3 – confirmarCambios', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorModificarPlanificacion
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarCambios()
+C->>+LCD: save(lcActual : LoteCampania)
+LCD-->>-C:
+C-->>-UI: «lcActual : LoteCampania»
+Note over UI: UI muestra al actor: "Planificación actualizada"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorModificarPlanificacion {
+  +seleccionarPlanificacion(idLote : Integer, idCampania : Integer) LoteCampania
+  +informarCambios(idEspecie : Integer, idCultivar : Integer, fechaSiembra : Date, densidad : Real, antecesor : String, manejo : String) Prediccion[*]
+  +confirmarCambios() LoteCampania
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +buscarPorLoteYCampania(idLote : Integer, idCampania : Integer) LoteCampania
+  +save(lc : LoteCampania)
+}
+class EspecieDao {
+  <<Repository>>
+  +getOne(idEspecie : Integer) Especie
+}
+class CultivarDao {
+  <<Repository>>
+  +getOne(idCultivar : Integer) Cultivar
+}
+class PrediccionDao {
+  <<Repository>>
+  +buscarPorLoteCampania(lc : LoteCampania) Prediccion[*]
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  -fechaSiembra : Date
+  -densidad : Real
+  -antecesor : String
+  -manejo : String
+  -fechaModificacion : Date
+  +getNombreCultivar() String
+  +getFechaSiembra() Date
+  +getDensidad() Real
+  +getAntecesor() String
+  +getManejo() String
+  +actualizarPlanificacion(e : Especie, cv : Cultivar, fechaSiembra : Date, densidad : Real, antecesor : String, manejo : String) Boolean
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+}
+class Especie {
+  -idEspecie : Integer = {@Id @GeneratedValue}
+}
+class Cultivar {
+  -idCultivar : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  +getNombre() String
+  +esDeEspecie(e : Especie) Boolean
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -nombreEscenario : String
+  -fecha : Date
+  +getNombreEscenario() String
+  +getFecha() Date
+}
+ControladorModificarPlanificacion "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorModificarPlanificacion "*" --> "0..1 -eDao" EspecieDao
+ControladorModificarPlanificacion "*" --> "0..1 -cvDao" CultivarDao
+ControladorModificarPlanificacion "*" --> "0..1 -pdDao" PrediccionDao
+ControladorModificarPlanificacion "*" --> "0..1 -lcActual" LoteCampania
+ControladorModificarPlanificacion ..> Especie
+ControladorModificarPlanificacion ..> Cultivar
+ControladorModificarPlanificacion ..> Prediccion
+LoteCampaniaDao ..> LoteCampania
+EspecieDao ..> Especie
+CultivarDao ..> Cultivar
+PrediccionDao ..> Prediccion
+PrediccionDao ..> LoteCampania
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -campania" Campania
+LoteCampania "*" --> "1 -especie" Especie
+LoteCampania "*" --> "1 -cultivar" Cultivar
+Cultivar "*" --> "1 -especie" Especie
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+`
+});
+
+window.CU.push({
+  id: 'CUU14', nombre: 'Registrar una aplicación de insumos', controlador: 'ControladorRegistrarAplicacion',
+  supuestos: [
+    'LoteCampania crea la aplicación y valida dosis, costo y compatibilidad de unidad (experto + creador). Si es inválida devuelve NULL y no se registra.',
+    'AplicacionInsumo es parte de LoteCampania (composición): se guarda con LoteCampaniaDao.',
+    'La dosis se interpreta como cantidad por hectárea (cuestión abierta del CU).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – ingresarAplicacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarAplicacion
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant ID as iDao:«Repository» InsumoDao
+participant LC as lcActual:LoteCampania
+participant I as insumo:Insumo
+Note over UI: UI recibe del actor: idLote + idCampania + idInsumo + fecha + dosis + unidad + costoHa
+UI->>+C: ingresarAplicacion(idLote : Integer, idCampania : Integer, idInsumo : Integer, fecha : Date, dosis : Real, unidad : String, costoHa : Real)
+C->>+LCD: buscarPorLoteYCampania(idLote : Integer, idCampania : Integer)
+Note right of LCD: JPQL: SELECT lc FROM LoteCampania lc WHERE lc.lote.idLote = ?1 AND lc.campania.idCampania = ?2
+LCD-->>-C: «lcActual : LoteCampania»
+C->>+ID: existsById(idInsumo : Integer)
+ID-->>-C: «existe : Boolean»
+opt existe == true
+  C->>+ID: getOne(idInsumo : Integer)
+  ID-->>-C: «insumo : Insumo»
+  C->>+LC: crearAplicacion(insumo : Insumo, fecha : Date, dosis : Real, unidad : String, costoHa : Real)
+  LC->>+I: admiteUnidad(unidad : String)
+  I-->>-LC: «compatible : Boolean»
+  opt compatible == true AND dosis > 0 AND costoHa >= 0
+    create participant AP as aplicacionActual:AplicacionInsumo
+    LC-->>AP: create(insumo : Insumo, fecha : Date, dosis : Real, unidad : String, costoHa : Real)
+  end
+  LC-->>-C: «aplicacionActual : AplicacionInsumo»
+end
+C-->>-UI: «aplicacionActual : AplicacionInsumo»
+alt aplicacionActual IS NOT NULL
+  UI->>+AP: getCostoHa()
+  AP-->>-UI: «costoHa : Real»
+  Note over UI: UI muestra al actor: aplicación + costo declarado para confirmar
+else aplicacionActual IS NULL
+  Note over UI: UI muestra al actor: insumo inexistente, unidad incompatible o valores a corregir
+end
+` },
+    { titulo: 'Evento 2 – confirmarAplicacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarAplicacion
+participant LC as lcActual:LoteCampania
+participant APS as «multiobjeto» aplicaciones:AplicacionInsumo
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarAplicacion()
+C->>+LC: agregarAplicacion(aplicacionActual : AplicacionInsumo)
+LC->>+APS: add(aplicacionActual : AplicacionInsumo)
+APS-->>-LC:
+LC-->>-C:
+C->>+LCD: save(lcActual : LoteCampania)
+LCD-->>-C:
+C-->>-UI: «aplicacionActual : AplicacionInsumo»
+Note over UI: UI muestra al actor: "Aplicación registrada"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarAplicacion {
+  +ingresarAplicacion(idLote : Integer, idCampania : Integer, idInsumo : Integer, fecha : Date, dosis : Real, unidad : String, costoHa : Real) AplicacionInsumo
+  +confirmarAplicacion() AplicacionInsumo
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +buscarPorLoteYCampania(idLote : Integer, idCampania : Integer) LoteCampania
+  +save(lc : LoteCampania)
+}
+class InsumoDao {
+  <<Repository>>
+  +existsById(idInsumo : Integer) Boolean
+  +getOne(idInsumo : Integer) Insumo
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  +crearAplicacion(i : Insumo, fecha : Date, dosis : Real, unidad : String, costoHa : Real) AplicacionInsumo
+  +agregarAplicacion(ap : AplicacionInsumo)
+}
+class AplicacionInsumo {
+  -fecha : Date
+  -dosis : Real
+  -unidad : String
+  -costoHa : Real
+  +create(i : Insumo, fecha : Date, dosis : Real, unidad : String, costoHa : Real)
+  +getCostoHa() Real
+}
+class Insumo {
+  -idInsumo : Integer = {@Id @GeneratedValue}
+  -unidadesAdmitidas : String[*]
+  +admiteUnidad(unidad : String) Boolean
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+}
+ControladorRegistrarAplicacion "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorRegistrarAplicacion "*" --> "0..1 -iDao" InsumoDao
+ControladorRegistrarAplicacion "*" --> "0..1 -lcActual" LoteCampania
+ControladorRegistrarAplicacion "1" --> "0..1 -aplicacionActual" AplicacionInsumo
+ControladorRegistrarAplicacion ..> Insumo
+LoteCampaniaDao ..> LoteCampania
+InsumoDao ..> Insumo
+LoteCampania ..> Insumo
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -campania" Campania
+LoteCampania "1" *--> "* -aplicaciones" AplicacionInsumo
+AplicacionInsumo "*" --> "1 -insumo" Insumo
+`
+});
+
+</script>
+<script>
+// CUU15 a CUU20 – Economía, simulación, comparación y arrendamientos
+window.CU.push({
+  id: 'CUU15', nombre: 'Definir los supuestos económicos de una campaña', controlador: 'ControladorDefinirSupuestos',
+  supuestos: [
+    'Los supuestos se modelan como SupuestoEconomico, parte (composición) de LoteCampania. Guarda la cotización y la fecha usadas en la conversión.',
+    'El costo de alquiler se ingresa con su unidad (USD/ha o qq/ha) y se normaliza a USD/ha una sola vez, para no sumarlo dos veces.',
+    'Si no hay cotización (2.a) o falta el tipo de cambio (4.a), normalizar devuelve false y la UI solicita el valor propio.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – consultarReferencias', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorDefinirSupuestos
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant LC as lcActual:LoteCampania
+participant GD as pgDao:«Repository» PrecioGranoDao
+participant TD as tcDao:«Repository» TipoCambioDao
+participant PR as precios[i]:PrecioGrano
+Note over UI: UI recibe del actor: idLoteCampania
+UI->>+C: consultarReferencias(idLoteCampania : Integer)
+C->>+LCD: getOne(idLoteCampania : Integer)
+LCD-->>-C: «lcActual : LoteCampania»
+C->>+LC: getEspecie()
+LC-->>-C: «especie : Especie»
+C->>+GD: buscarPorEspecie(especie : Especie)
+Note right of GD: JPQL: SELECT p FROM PrecioGrano p WHERE p.especie = ?1 ORDER BY p.fecha DESC
+GD-->>-C: «precios : PrecioGrano[*]»
+C->>+TD: buscarUltimo()
+Note right of TD: JPQL: SELECT t FROM TipoCambio t WHERE t.fecha = (SELECT MAX(t2.fecha) FROM TipoCambio t2)
+TD-->>-C: «tcActual : TipoCambio»
+C-->>-UI: «precios : PrecioGrano[*]»
+alt precios IS NOT EMPTY
+  loop Para cada p en precios
+    UI->>+PR: getPrecio()
+    PR-->>-UI: «precio : Real»
+    UI->>+PR: getMoneda()
+    PR-->>-UI: «moneda : String»
+    UI->>+PR: getUnidad()
+    PR-->>-UI: «unidad : String»
+    UI->>+PR: getFecha()
+    PR-->>-UI: «fecha : Date»
+    UI->>+PR: getFuente()
+    PR-->>-UI: «fuente : String»
+  end
+  Note over UI: UI muestra al actor: precio + moneda + unidad + fecha + fuente de cada referencia
+else precios IS EMPTY
+  Note over UI: UI muestra al actor: "No existe cotización: informe un valor propio con fecha y unidad"
+end
+` },
+    { titulo: 'Evento 2 – informarSupuestos', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorDefinirSupuestos
+participant TC as tcActual:TipoCambio
+Note over UI: UI recibe del actor: precioVenta + moneda + gastosComercializacion + costoAlquiler + unidadAlquiler
+UI->>+C: informarSupuestos(precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String)
+create participant SE as supuestosActuales:SupuestoEconomico
+C-->>SE: create(precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String)
+C->>+SE: normalizar(tcActual : TipoCambio)
+opt tcActual IS NOT NULL
+  SE->>+TC: getCotizacion()
+  TC-->>-SE: «cotizacion : Real»
+  SE->>+TC: getFecha()
+  TC-->>-SE: «fechaCotizacion : Date»
+  Note right of SE: precioVentaUsd y costoAlquilerUsdHa se calculan con cotizacion. Guarda cotizacion y fechaCotizacion utilizadas
+end
+Note right of SE: normalizado = (valores >= 0) AND (unidades admitidas) AND (conversiones completas)
+SE-->>-C: «normalizado : Boolean»
+C-->>-UI: «supuestosActuales : SupuestoEconomico»
+UI->>+SE: estaNormalizado()
+SE-->>-UI: «normalizado : Boolean»
+UI->>+SE: getPrecioVentaUsd()
+SE-->>-UI: «precioVentaUsd : Real»
+UI->>+SE: getCostoAlquilerUsdHa()
+SE-->>-UI: «costoAlquilerUsdHa : Real»
+Note over UI: UI muestra al actor: supuestos normalizados + cotización utilizada (o el dato a completar o corregir si normalizado == false)
+` },
+    { titulo: 'Evento 3 – confirmarSupuestos', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorDefinirSupuestos
+participant LC as lcActual:LoteCampania
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarSupuestos()
+C->>+LC: asignarSupuestos(supuestosActuales : SupuestoEconomico)
+LC-->>-C:
+C->>+LCD: save(lcActual : LoteCampania)
+LCD-->>-C:
+C-->>-UI: «lcActual : LoteCampania»
+Note over UI: UI muestra al actor: "Los supuestos se usarán en las próximas simulaciones"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorDefinirSupuestos {
+  +consultarReferencias(idLoteCampania : Integer) PrecioGrano[*]
+  +informarSupuestos(precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String) SupuestoEconomico
+  +confirmarSupuestos() LoteCampania
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +getOne(idLoteCampania : Integer) LoteCampania
+  +save(lc : LoteCampania)
+}
+class PrecioGranoDao {
+  <<Repository>>
+  +buscarPorEspecie(e : Especie) PrecioGrano[*]
+}
+class TipoCambioDao {
+  <<Repository>>
+  +buscarUltimo() TipoCambio
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  +getEspecie() Especie
+  +asignarSupuestos(s : SupuestoEconomico)
+}
+class SupuestoEconomico {
+  -precioVenta : Real
+  -moneda : String
+  -gastosComercializacion : Real
+  -costoAlquiler : Real
+  -unidadAlquiler : String
+  -precioVentaUsd : Real
+  -costoAlquilerUsdHa : Real
+  -cotizacion : Real
+  -fechaCotizacion : Date
+  -normalizado : Boolean
+  +create(precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String)
+  +normalizar(tc : TipoCambio) Boolean
+  +estaNormalizado() Boolean
+  +getPrecioVentaUsd() Real
+  +getCostoAlquilerUsdHa() Real
+}
+class PrecioGrano {
+  -idPrecioGrano : Integer = {@Id @GeneratedValue}
+  -precio : Real
+  -moneda : String
+  -unidad : String
+  -fecha : Date
+  -fuente : String
+  +getPrecio() Real
+  +getMoneda() String
+  +getUnidad() String
+  +getFecha() Date
+  +getFuente() String
+}
+class TipoCambio {
+  -idTipoCambio : Integer = {@Id @GeneratedValue}
+  -cotizacion : Real
+  -fecha : Date
+  +getCotizacion() Real
+  +getFecha() Date
+}
+class Especie
+ControladorDefinirSupuestos "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorDefinirSupuestos "*" --> "0..1 -pgDao" PrecioGranoDao
+ControladorDefinirSupuestos "*" --> "0..1 -tcDao" TipoCambioDao
+ControladorDefinirSupuestos "*" --> "0..1 -lcActual" LoteCampania
+ControladorDefinirSupuestos "*" --> "0..1 -tcActual" TipoCambio
+ControladorDefinirSupuestos "1" --> "0..1 -supuestosActuales" SupuestoEconomico
+ControladorDefinirSupuestos ..> Especie
+ControladorDefinirSupuestos ..> PrecioGrano
+LoteCampaniaDao ..> LoteCampania
+PrecioGranoDao ..> PrecioGrano
+PrecioGranoDao ..> Especie
+TipoCambioDao ..> TipoCambio
+SupuestoEconomico ..> TipoCambio
+LoteCampania "*" --> "1 -especie" Especie
+LoteCampania "1" *--> "0..1 -supuestos" SupuestoEconomico
+PrecioGrano "*" --> "1 -especie" Especie
+`
+});
+
+window.CU.push({
+  id: 'CUU16', nombre: 'Simular el rendimiento y margen de un escenario', controlador: 'ControladorSimularEscenario',
+  supuestos: [
+    'El motor predictivo es parte del sistema: se representa con la clase de dominio Modelo (una versión habilitada por especie), que crea la Prediccion (patrón Creador).',
+    'Las prestaciones habilitadas son un atributo de Plan (prestaciones), no un valor fijo en el DSD.',
+    'Si faltan entradas o no hay modelo compatible (3.a), o la ejecución no produce resultado (5.a), pred queda en NULL y no se guarda nada.',
+    'La Prediccion guarda entradas, versión del modelo y percentiles P10/P50/P90 para ser reproducible.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – prepararSimulacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorSimularEscenario
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant U as usuarioLogueado:Usuario
+participant S as suscripcionActual:Suscripcion
+participant P as plan:Plan
+participant PRS as «multiobjeto» prestaciones:String
+participant LC as lcActual:LoteCampania
+participant MD as mDao:«Repository» ModeloDao
+participant M as modeloActual:Modelo
+Note over UI: UI recibe del actor: idLoteCampania + nombreEscenario
+UI->>+C: prepararSimulacion(idLoteCampania : Integer, nombreEscenario : String)
+C->>+LCD: getOne(idLoteCampania : Integer)
+LCD-->>-C: «lcActual : LoteCampania»
+C->>+U: habilitaPrestacion("simulacion")
+U->>+S: habilitaPrestacion(prestacion : String)
+S->>+P: incluyePrestacion(prestacion : String)
+P->>+PRS: contains(prestacion : String)
+PRS-->>-P: «habilitada : Boolean»
+P-->>-S: «habilitada : Boolean»
+S-->>-U: «habilitada : Boolean»
+U-->>-C: «habilitada : Boolean»
+Note over C: preparada = false
+opt habilitada == true
+  C->>+LC: getEspecie()
+  LC-->>-C: «especie : Especie»
+  C->>+MD: buscarHabilitadoPorEspecie(especie : Especie)
+  Note right of MD: JPQL: SELECT m FROM Modelo m WHERE m.especie = ?1 AND m.estado = 'habilitado'
+  MD-->>-C: «modeloActual : Modelo»
+  opt modeloActual IS NOT NULL
+    C->>+LC: tieneEntradasCompletas()
+    Note right of LC: completas = lote con suelo y clima AND cultivar AND fechaSiembra AND supuestos IS NOT NULL
+    LC-->>-C: «preparada : Boolean»
+  end
+end
+C-->>-UI: «preparada : Boolean»
+alt preparada == true
+  UI->>+M: getVersion()
+  M-->>-UI: «version : String»
+  UI->>+M: getLimitaciones()
+  M-->>-UI: «limitaciones : String»
+  UI->>+LC: getEntradas()
+  LC-->>-UI: «entradas : String»
+  Note over UI: UI muestra al actor: supuestos + fuentes + limitaciones y solicita confirmar la ejecución
+else preparada == false
+  Note over UI: UI muestra al actor: restricción del plan, o entradas faltantes o modelo no disponible
+end
+` },
+    { titulo: 'Evento 2 – ejecutarSimulacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorSimularEscenario
+participant M as modeloActual:Modelo
+participant LC as lcActual:LoteCampania
+participant SE as supuestos:SupuestoEconomico
+participant PD as pdDao:«Repository» PrediccionDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: ejecutarSimulacion()
+C->>+M: simular(lcActual : LoteCampania, nombreEscenario : String)
+M->>+LC: getEntradas()
+LC-->>-M: «entradas : String»
+Note right of M: Calcula rendimientoP10, rendimientoP50 y rendimientoP90 (kg/ha) con las entradas
+M->>+LC: calcularMargen(rendimientoP50 : Real)
+LC->>+SE: calcularMargen(rendimientoP50 : Real, costoInsumosHa : Real)
+Note right of SE: margen = rendimientoP50 * precioVentaUsd - gastosComercializacion - costoInsumosHa - costoAlquilerUsdHa
+SE-->>-LC: «margen : Real»
+LC-->>-M: «margen : Real»
+opt resultado válido
+  create participant PRD as pred:Prediccion
+  M-->>PRD: create(nombreEscenario : String, lcActual : LoteCampania, entradas : String, rendimientoP10 : Real, rendimientoP50 : Real, rendimientoP90 : Real, margen : Real)
+  Note right of PRD: fecha = date(), modelo = modeloActual, versionModelo = version
+end
+M-->>-C: «pred : Prediccion»
+opt pred IS NOT NULL
+  C->>+PD: save(pred : Prediccion)
+  PD-->>-C:
+end
+C-->>-UI: «pred : Prediccion»
+alt pred IS NOT NULL
+  UI->>+PRD: getRendimientoP50()
+  PRD-->>-UI: «rendimientoP50 : Real»
+  UI->>+PRD: getRendimientoP10()
+  PRD-->>-UI: «rendimientoP10 : Real»
+  UI->>+PRD: getRendimientoP90()
+  PRD-->>-UI: «rendimientoP90 : Real»
+  UI->>+PRD: getMargen()
+  PRD-->>-UI: «margen : Real»
+  Note over UI: UI muestra al actor: rendimiento + margen + unidades + interpretación de la incertidumbre (P10 a P90)
+else pred IS NULL
+  Note over UI: UI muestra al actor: "La simulación no pudo completarse"
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorSimularEscenario {
+  -nombreEscenario : String
+  +prepararSimulacion(idLoteCampania : Integer, nombreEscenario : String) Boolean
+  +ejecutarSimulacion() Prediccion
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +getOne(idLoteCampania : Integer) LoteCampania
+}
+class ModeloDao {
+  <<Repository>>
+  +buscarHabilitadoPorEspecie(e : Especie) Modelo
+}
+class PrediccionDao {
+  <<Repository>>
+  +save(p : Prediccion)
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +habilitaPrestacion(prestacion : String) Boolean
+}
+class Suscripcion {
+  +habilitaPrestacion(prestacion : String) Boolean
+}
+class Plan {
+  -prestaciones : String[*]
+  +incluyePrestacion(prestacion : String) Boolean
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  +getEspecie() Especie
+  +tieneEntradasCompletas() Boolean
+  +getEntradas() String
+  +calcularMargen(rendimientoP50 : Real) Real
+}
+class SupuestoEconomico {
+  -precioVentaUsd : Real
+  -gastosComercializacion : Real
+  -costoAlquilerUsdHa : Real
+  +calcularMargen(rendimientoP50 : Real, costoInsumosHa : Real) Real
+}
+class Modelo {
+  -idModelo : Integer = {@Id @GeneratedValue}
+  -version : String
+  -estado : String
+  -limitaciones : String
+  +getVersion() String
+  +getLimitaciones() String
+  +simular(lc : LoteCampania, nombreEscenario : String) Prediccion
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -nombreEscenario : String
+  -fecha : Date
+  -entradas : String
+  -versionModelo : String
+  -rendimientoP10 : Real
+  -rendimientoP50 : Real
+  -rendimientoP90 : Real
+  -margen : Real
+  +create(nombreEscenario : String, lc : LoteCampania, entradas : String, rendimientoP10 : Real, rendimientoP50 : Real, rendimientoP90 : Real, margen : Real)
+  +getRendimientoP10() Real
+  +getRendimientoP50() Real
+  +getRendimientoP90() Real
+  +getMargen() Real
+}
+class Especie
+ControladorSimularEscenario "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorSimularEscenario "*" --> "0..1 -mDao" ModeloDao
+ControladorSimularEscenario "*" --> "0..1 -pdDao" PrediccionDao
+ControladorSimularEscenario "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorSimularEscenario "*" --> "0..1 -lcActual" LoteCampania
+ControladorSimularEscenario "*" --> "0..1 -modeloActual" Modelo
+ControladorSimularEscenario ..> Prediccion
+ControladorSimularEscenario ..> Especie
+LoteCampaniaDao ..> LoteCampania
+ModeloDao ..> Modelo
+ModeloDao ..> Especie
+PrediccionDao ..> Prediccion
+Modelo ..> LoteCampania
+Usuario "1" *--> "0..1 -suscripcionActual" Suscripcion
+Suscripcion "*" --> "1 -plan" Plan
+LoteCampania "*" --> "1 -especie" Especie
+LoteCampania "1" *--> "0..1 -supuestos" SupuestoEconomico
+Modelo "*" --> "1 -especie" Especie
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+Prediccion "*" --> "1 -modelo" Modelo
+`
+});
+
+window.CU.push({
+  id: 'CUU17', nombre: 'Comparar escenarios productivo-económicos', controlador: 'ControladorCompararEscenarios',
+  supuestos: [
+    'El evento seleccionarEscenario se repite por cada escenario. La selección se guarda en la colección seleccion del controlador (variable de instancia usada en el evento siguiente).',
+    'La comparación se calcula al consultar y no se persiste: Comparacion es una clase de dominio sin DAO.',
+    'Comparacion es el experto que detecta diferencias de moneda, superficie, período y versión de modelo.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – seleccionarEscenario (se repite por cada escenario)', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCompararEscenarios
+participant PD as pdDao:«Repository» PrediccionDao
+participant P as p:Prediccion
+participant SEL as «multiobjeto» seleccion:Prediccion
+Note over UI: UI recibe del actor: idPrediccion
+UI->>+C: seleccionarEscenario(idPrediccion : Integer)
+C->>+PD: getOne(idPrediccion : Integer)
+PD-->>-C: «p : Prediccion»
+C->>+P: esAccesiblePara(usuarioLogueado : Usuario)
+P-->>-C: «accesible : Boolean»
+opt accesible == true
+  C->>+SEL: add(p : Prediccion)
+  SEL-->>-C:
+end
+C-->>-UI: «accesible : Boolean»
+Note over UI: UI muestra al actor: escenario agregado a la selección (o "resultado no accesible")
+` },
+    { titulo: 'Evento 2 – compararEscenarios', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCompararEscenarios
+participant U as usuarioLogueado:Usuario
+participant SEL as «multiobjeto» seleccion:Prediccion
+participant EI as escenarios[i]:Prediccion
+Note over UI: UI recibe del actor: indicadores a comparar
+UI->>+C: compararEscenarios()
+C->>+U: habilitaPrestacion("comparacion")
+Note right of U: Delega en suscripcionActual y plan (ver DSD de CUU16, Evento 1)
+U-->>-C: «habilitada : Boolean»
+C->>+SEL: size()
+SEL-->>-C: «cantidad : Integer»
+opt habilitada == true AND cantidad >= 2
+  create participant CO as comp:Comparacion
+  C-->>CO: create(seleccion : Prediccion[*])
+  C->>+CO: evaluarCompatibilidad()
+  Note right of CO: comparable = true
+  loop Para cada e en escenarios
+    CO->>+EI: getMoneda()
+    EI-->>-CO: «moneda : String»
+    CO->>+EI: getSuperficieHa()
+    EI-->>-CO: «superficieHa : Real»
+    CO->>+EI: getVersionModelo()
+    EI-->>-CO: «versionModelo : String»
+    Note right of CO: Si la moneda o la unidad difieren: comparable = false. Registra cada diferencia de supuestos en diferencias
+  end
+  CO-->>-C: «comparable : Boolean»
+end
+C-->>-UI: «comp : Comparacion»
+alt comp IS NOT NULL
+  UI->>+CO: esComparable()
+  CO-->>-UI: «comparable : Boolean»
+  UI->>+CO: getDiferencias()
+  CO-->>-UI: «diferencias : String[*]»
+  loop Para cada e en escenarios
+    UI->>+EI: getNombreEscenario()
+    EI-->>-UI: «nombreEscenario : String»
+    UI->>+EI: getRendimientoP50()
+    EI-->>-UI: «rendimientoP50 : Real»
+    UI->>+EI: getMargen()
+    EI-->>-UI: «margen : Real»
+  end
+  Note over UI: UI muestra al actor: indicadores comparables con sus unidades + diferencias de supuestos (o la incompatibilidad si comparable == false)
+else comp IS NULL
+  Note over UI: UI muestra al actor: "Seleccione al menos dos escenarios" o "El plan no habilita la comparación"
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorCompararEscenarios {
+  +seleccionarEscenario(idPrediccion : Integer) Boolean
+  +compararEscenarios() Comparacion
+}
+class PrediccionDao {
+  <<Repository>>
+  +getOne(idPrediccion : Integer) Prediccion
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +habilitaPrestacion(prestacion : String) Boolean
+}
+class Comparacion {
+  -comparable : Boolean
+  -diferencias : String[*]
+  +create(escenarios : Prediccion[*])
+  +evaluarCompatibilidad() Boolean
+  +esComparable() Boolean
+  +getDiferencias() String[*]
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -nombreEscenario : String
+  -moneda : String
+  -superficieHa : Real
+  -versionModelo : String
+  -rendimientoP50 : Real
+  -margen : Real
+  +esAccesiblePara(u : Usuario) Boolean
+  +getNombreEscenario() String
+  +getMoneda() String
+  +getSuperficieHa() Real
+  +getVersionModelo() String
+  +getRendimientoP50() Real
+  +getMargen() Real
+}
+ControladorCompararEscenarios "*" --> "0..1 -pdDao" PrediccionDao
+ControladorCompararEscenarios "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorCompararEscenarios "*" --> "* -seleccion" Prediccion
+ControladorCompararEscenarios ..> Comparacion
+PrediccionDao ..> Prediccion
+Prediccion ..> Usuario
+Comparacion "*" --> "2..* -escenarios" Prediccion
+`
+});
+
+window.CU.push({
+  id: 'CUU18', nombre: 'Obtener recomendaciones de cultivos de servicio', controlador: 'ControladorRecomendarCultivosServicio',
+  supuestos: [
+    'Ampliación del modelo (cuestión abierta del CU): se agrega la clase CultivoServicio con sus criterios agronómicos. Cada cultivo de servicio evalúa si es apto para la planificación (patrón Experto).',
+    'La recomendación no modifica la planificación: adoptarla se hace luego con CUU13.',
+    'Si no hay candidatos para el objetivo (3.b) o ninguno es apto (3.a), la colección alternativas queda vacía.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – solicitarRecomendaciones', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRecomendarCultivosServicio
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant U as usuarioLogueado:Usuario
+participant SD as csDao:«Repository» CultivoServicioDao
+participant CI as candidatos[i]:CultivoServicio
+participant LC as lcActual:LoteCampania
+Note over UI: UI recibe del actor: idLote + idCampania + objetivoManejo + restricciones
+UI->>+C: solicitarRecomendaciones(idLote : Integer, idCampania : Integer, objetivoManejo : String, restricciones : String)
+C->>+LCD: buscarPorLoteYCampania(idLote : Integer, idCampania : Integer)
+Note right of LCD: JPQL: SELECT lc FROM LoteCampania lc WHERE lc.lote.idLote = ?1 AND lc.campania.idCampania = ?2
+LCD-->>-C: «lcActual : LoteCampania»
+C->>+U: habilitaPrestacion("recomendaciones")
+Note right of U: Delega en suscripcionActual y plan (ver DSD de CUU16, Evento 1)
+U-->>-C: «habilitada : Boolean»
+opt habilitada == true
+  create participant AL as «multiobjeto» alternativas:CultivoServicio
+  C-->>AL: create()
+  C->>+SD: buscarPorObjetivo(objetivoManejo : String)
+  Note right of SD: JPQL: SELECT cs FROM CultivoServicio cs WHERE cs.objetivo = ?1
+  SD-->>-C: «candidatos : CultivoServicio[*]»
+  loop Para cada cs en candidatos
+    C->>+CI: esAptoPara(lcActual : LoteCampania, restricciones : String)
+    CI->>+LC: getFechaSiembra()
+    LC-->>-CI: «fechaSiembra : Date»
+    CI->>+LC: getAntecesor()
+    LC-->>-CI: «antecesor : String»
+    Note right of CI: apto = ventana de siembra compatible con fechaSiembra AND antecesor admitido AND cumple restricciones
+    CI-->>-C: «apto : Boolean»
+    opt apto == true
+      C->>+AL: add(cs : CultivoServicio)
+      AL-->>-C:
+    end
+  end
+end
+C-->>-UI: «alternativas : CultivoServicio[*]»
+participant AI as alternativas[i]:CultivoServicio
+alt alternativas IS NOT EMPTY
+  loop Para cada a en alternativas
+    UI->>+AI: getNombre()
+    AI-->>-UI: «nombre : String»
+    UI->>+AI: getFundamento()
+    AI-->>-UI: «fundamento : String»
+    UI->>+AI: getCondicionesUso()
+    AI-->>-UI: «condicionesUso : String»
+    UI->>+AI: getLimitaciones()
+    AI-->>-UI: «limitaciones : String»
+  end
+  Note over UI: UI muestra al actor: alternativas con fundamento, condiciones de uso y limitaciones
+else alternativas IS EMPTY OR alternativas IS NULL
+  Note over UI: UI muestra al actor: prestación no habilitada, o "No se puede recomendar una alternativa para esas condiciones"
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRecomendarCultivosServicio {
+  +solicitarRecomendaciones(idLote : Integer, idCampania : Integer, objetivoManejo : String, restricciones : String) CultivoServicio[*]
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +buscarPorLoteYCampania(idLote : Integer, idCampania : Integer) LoteCampania
+}
+class CultivoServicioDao {
+  <<Repository>>
+  +buscarPorObjetivo(objetivoManejo : String) CultivoServicio[*]
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +habilitaPrestacion(prestacion : String) Boolean
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  -fechaSiembra : Date
+  -antecesor : String
+  +getFechaSiembra() Date
+  +getAntecesor() String
+}
+class CultivoServicio {
+  -idCultivoServicio : Integer = {@Id @GeneratedValue}
+  -nombre : String
+  -objetivo : String
+  -fundamento : String
+  -condicionesUso : String
+  -limitaciones : String
+  +esAptoPara(lc : LoteCampania, restricciones : String) Boolean
+  +getNombre() String
+  +getFundamento() String
+  +getCondicionesUso() String
+  +getLimitaciones() String
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+}
+ControladorRecomendarCultivosServicio "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorRecomendarCultivosServicio "*" --> "0..1 -csDao" CultivoServicioDao
+ControladorRecomendarCultivosServicio "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorRecomendarCultivosServicio ..> LoteCampania
+ControladorRecomendarCultivosServicio ..> CultivoServicio
+LoteCampaniaDao ..> LoteCampania
+CultivoServicioDao ..> CultivoServicio
+CultivoServicio ..> LoteCampania
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -campania" Campania
+`
+});
+
+window.CU.push({
+  id: 'CUU19', nombre: 'Consultar ofertas de alquiler de campos', controlador: 'ControladorConsultarOfertas',
+  supuestos: [
+    'Es una consulta: no modifica ofertas. Precio, unidad o enlace no informados llegan como NULL y la UI los muestra como "no informado" sin calcular costos.',
+    'La fecha de recolección se muestra siempre: no demuestra que la oferta siga vigente.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – buscarOfertas', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarOfertas
+participant DD as dDao:«Repository» DepartamentoDao
+participant AD as avDao:«Repository» AvisoAlquilerCampoDao
+participant OI as ofertas[i]:AvisoAlquilerCampo
+Note over UI: UI recibe del actor: idDepartamento + superficieMin + superficieMax
+UI->>+C: buscarOfertas(idDepartamento : Integer, superficieMin : Real, superficieMax : Real)
+C->>+DD: getOne(idDepartamento : Integer)
+DD-->>-C: «d : Departamento»
+C->>+AD: buscarPorCriterios(d : Departamento, superficieMin : Real, superficieMax : Real)
+Note right of AD: JPQL: SELECT a FROM AvisoAlquilerCampo a WHERE a.departamento = ?1 AND a.superficieHa BETWEEN ?2 AND ?3
+AD-->>-C: «ofertas : AvisoAlquilerCampo[*]»
+C-->>-UI: «ofertas : AvisoAlquilerCampo[*]»
+alt ofertas IS NOT EMPTY
+  loop Para cada o en ofertas
+    UI->>+OI: getIdAviso()
+    OI-->>-UI: «idAviso : Integer»
+    UI->>+OI: getSuperficieHa()
+    OI-->>-UI: «superficieHa : Real»
+    UI->>+OI: getFuente()
+    OI-->>-UI: «fuente : String»
+    UI->>+OI: getFechaRecoleccion()
+    OI-->>-UI: «fechaRecoleccion : Date»
+  end
+  Note over UI: UI muestra al actor: idAviso + superficieHa + fuente + fechaRecoleccion de cada oferta
+else ofertas IS EMPTY
+  Note over UI: UI muestra al actor: "No existen ofertas coincidentes, cambie los criterios"
+end
+` },
+    { titulo: 'Evento 2 – seleccionarOferta', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarOfertas
+participant AD as avDao:«Repository» AvisoAlquilerCampoDao
+participant O as oferta:AvisoAlquilerCampo
+Note over UI: UI recibe del actor: idAviso
+UI->>+C: seleccionarOferta(idAviso : Integer)
+C->>+AD: getOne(idAviso : Integer)
+AD-->>-C: «oferta : AvisoAlquilerCampo»
+C-->>-UI: «oferta : AvisoAlquilerCampo»
+UI->>+O: getUbicacion()
+O-->>-UI: «ubicacion : String»
+UI->>+O: getSuperficieHa()
+O-->>-UI: «superficieHa : Real»
+UI->>+O: getAptitud()
+O-->>-UI: «aptitud : String»
+UI->>+O: getPrecio()
+O-->>-UI: «precio : Real»
+UI->>+O: getUnidad()
+O-->>-UI: «unidad : String»
+UI->>+O: getEnlace()
+O-->>-UI: «enlace : String»
+UI->>+O: getFechaRecoleccion()
+O-->>-UI: «fechaRecoleccion : Date»
+Note over UI: UI muestra al actor: ubicación + superficie + aptitud + precio y unidad (o "no informado") + enlace de origen + fechaRecoleccion
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorConsultarOfertas {
+  +buscarOfertas(idDepartamento : Integer, superficieMin : Real, superficieMax : Real) AvisoAlquilerCampo[*]
+  +seleccionarOferta(idAviso : Integer) AvisoAlquilerCampo
+}
+class DepartamentoDao {
+  <<Repository>>
+  +getOne(idDepartamento : Integer) Departamento
+}
+class AvisoAlquilerCampoDao {
+  <<Repository>>
+  +buscarPorCriterios(d : Departamento, superficieMin : Real, superficieMax : Real) AvisoAlquilerCampo[*]
+  +getOne(idAviso : Integer) AvisoAlquilerCampo
+}
+class Departamento {
+  -idDepartamento : Integer = {@Id}
+}
+class AvisoAlquilerCampo {
+  -idAviso : Integer = {@Id @GeneratedValue}
+  -ubicacion : String
+  -superficieHa : Real
+  -aptitud : String
+  -precio : Real
+  -unidad : String
+  -enlace : String
+  -fuente : String
+  -fechaRecoleccion : Date
+  +getIdAviso() Integer
+  +getUbicacion() String
+  +getSuperficieHa() Real
+  +getAptitud() String
+  +getPrecio() Real
+  +getUnidad() String
+  +getEnlace() String
+  +getFuente() String
+  +getFechaRecoleccion() Date
+}
+ControladorConsultarOfertas "*" --> "0..1 -dDao" DepartamentoDao
+ControladorConsultarOfertas "*" --> "0..1 -avDao" AvisoAlquilerCampoDao
+ControladorConsultarOfertas ..> Departamento
+ControladorConsultarOfertas ..> AvisoAlquilerCampo
+DepartamentoDao ..> Departamento
+AvisoAlquilerCampoDao ..> AvisoAlquilerCampo
+AvisoAlquilerCampoDao ..> Departamento
+AvisoAlquilerCampo "*" --> "1 -departamento" Departamento
+`
+});
+
+window.CU.push({
+  id: 'CUU20', nombre: 'Evaluar la viabilidad de un arrendamiento', controlador: 'ControladorEvaluarArrendamiento',
+  supuestos: [
+    'CU estructurado: el paso 5 incluye a CUU16. En el DSD se representa con el marco ref (como nota, porque la herramienta no dibuja el marco ref).',
+    'Se propone distinguir el lote hipotético del administrado con el atributo hipotetico de Lote, y un vínculo opcional de LoteCampania con la oferta (cuestión abierta del CU).',
+    'CUU16 ya guarda la Prediccion: el paso 6 no la duplica, solo le agrega el rendimiento de indiferencia.',
+    'Un margen negativo (5.b) es un resultado válido: se presenta igual.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – identificarOferta', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorEvaluarArrendamiento
+participant AD as avDao:«Repository» AvisoAlquilerCampoDao
+participant O as ofertaActual:AvisoAlquilerCampo
+Note over UI: UI recibe del actor: idAviso (o condiciones propias: ubicación + superficieHa)
+UI->>+C: identificarOferta(idAviso : Integer)
+C->>+AD: getOne(idAviso : Integer)
+AD-->>-C: «ofertaActual : AvisoAlquilerCampo»
+C-->>-UI: «ofertaActual : AvisoAlquilerCampo»
+UI->>+O: getUbicacion()
+O-->>-UI: «ubicacion : String»
+UI->>+O: getSuperficieHa()
+O-->>-UI: «superficieHa : Real»
+UI->>+O: getPrecio()
+O-->>-UI: «precio : Real»
+UI->>+O: getUnidad()
+O-->>-UI: «unidad : String»
+Note over UI: UI muestra al actor: datos disponibles de la oferta y solicita cultivo, manejo y supuestos económicos
+` },
+    { titulo: 'Evento 2 – completarAlternativa', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorEvaluarArrendamiento
+participant U as usuarioLogueado:Usuario
+participant ED as eDao:«Repository» EspecieDao
+participant VD as cvDao:«Repository» CultivarDao
+participant TD as tcDao:«Repository» TipoCambioDao
+participant O as ofertaActual:AvisoAlquilerCampo
+Note over UI: UI recibe del actor: idEspecie + idCultivar + fechaSiembra + densidad + precioVenta + moneda + gastosComercializacion + costoAlquiler + unidadAlquiler
+UI->>+C: completarAlternativa(idEspecie : Integer, idCultivar : Integer, fechaSiembra : Date, densidad : Real, precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String)
+C->>+U: habilitaPrestacion("arrendamiento")
+Note right of U: Delega en suscripcionActual y plan (ver DSD de CUU16, Evento 1)
+U-->>-C: «habilitada : Boolean»
+Note over C: lista = false
+opt habilitada == true
+  C->>+ED: getOne(idEspecie : Integer)
+  ED-->>-C: «especie : Especie»
+  C->>+VD: getOne(idCultivar : Integer)
+  VD-->>-C: «cultivar : Cultivar»
+  C->>+O: crearLoteHipotetico()
+  create participant L as loteHip:Lote
+  O-->>L: create(ubicacion : String, superficieHa : Real)
+  Note right of L: hipotetico = true
+  O-->>-C: «loteHip : Lote»
+  create participant LC as lcHip:LoteCampania
+  C-->>LC: create(loteHip : Lote, especie : Especie, cultivar : Cultivar, fechaSiembra : Date, densidad : Real)
+  C->>+TD: buscarUltimo()
+  Note right of TD: JPQL: SELECT t FROM TipoCambio t WHERE t.fecha = (SELECT MAX(t2.fecha) FROM TipoCambio t2)
+  TD-->>-C: «tc : TipoCambio»
+  create participant SE as sup:SupuestoEconomico
+  C-->>SE: create(precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String)
+  C->>+SE: normalizar(tc : TipoCambio)
+  SE-->>-C: «normalizado : Boolean»
+  opt normalizado == true
+    C->>+LC: asignarSupuestos(sup : SupuestoEconomico)
+    LC-->>-C:
+    C->>+LC: vincularOferta(ofertaActual : AvisoAlquilerCampo)
+    LC-->>-C:
+    Note over C: lista = true
+  end
+end
+C-->>-UI: «lista : Boolean»
+Note over UI: UI muestra al actor: alternativa lista para evaluar, o restricción del plan, o "complete el costo de alquiler en una unidad comparable"
+` },
+    { titulo: 'Evento 3 – evaluarViabilidad', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorEvaluarArrendamiento
+participant M as modeloActual:Modelo
+participant PRD as pred:Prediccion
+participant LC as lcHip:LoteCampania
+participant SE as sup:SupuestoEconomico
+participant PD as pdDao:«Repository» PrediccionDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: evaluarViabilidad()
+Note over C,M: ref: CUU16 – Simular el rendimiento y margen de un escenario (Eventos 1 y 2 con lcHip) → «pred : Prediccion»
+opt pred IS NOT NULL
+  C->>+PRD: calcularRendimientoIndiferencia()
+  PRD->>+LC: getCostoTotalHa()
+  LC->>+SE: getCostoAlquilerUsdHa()
+  SE-->>-LC: «costoAlquilerUsdHa : Real»
+  LC-->>-PRD: «costoTotalHa : Real»
+  PRD->>+LC: getPrecioNetoUsd()
+  LC->>+SE: getPrecioVentaUsd()
+  SE-->>-LC: «precioVentaUsd : Real»
+  LC-->>-PRD: «precioNetoUsd : Real»
+  Note right of PRD: rendimientoIndiferencia = costoTotalHa / precioNetoUsd
+  PRD-->>-C: «rendimientoIndiferencia : Real»
+  C->>+PD: save(pred : Prediccion)
+  PD-->>-C:
+end
+C-->>-UI: «pred : Prediccion»
+alt pred IS NOT NULL
+  UI->>+PRD: getMargen()
+  PRD-->>-UI: «margen : Real»
+  UI->>+PRD: getRendimientoP50()
+  PRD-->>-UI: «rendimientoP50 : Real»
+  UI->>+PRD: getRendimientoIndiferencia()
+  PRD-->>-UI: «rendimientoIndiferencia : Real»
+  Note over UI: UI muestra al actor: margen (aunque sea negativo) + rendimiento estimado + rendimiento de indiferencia + supuestos
+else pred IS NULL
+  Note over UI: UI muestra al actor: "No se puede concluir la evaluación" (sin calificarla como viable)
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorEvaluarArrendamiento {
+  +identificarOferta(idAviso : Integer) AvisoAlquilerCampo
+  +completarAlternativa(idEspecie : Integer, idCultivar : Integer, fechaSiembra : Date, densidad : Real, precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String) Boolean
+  +evaluarViabilidad() Prediccion
+}
+class AvisoAlquilerCampoDao {
+  <<Repository>>
+  +getOne(idAviso : Integer) AvisoAlquilerCampo
+}
+class EspecieDao {
+  <<Repository>>
+  +getOne(idEspecie : Integer) Especie
+}
+class CultivarDao {
+  <<Repository>>
+  +getOne(idCultivar : Integer) Cultivar
+}
+class TipoCambioDao {
+  <<Repository>>
+  +buscarUltimo() TipoCambio
+}
+class PrediccionDao {
+  <<Repository>>
+  +save(p : Prediccion)
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +habilitaPrestacion(prestacion : String) Boolean
+}
+class AvisoAlquilerCampo {
+  -idAviso : Integer = {@Id @GeneratedValue}
+  -ubicacion : String
+  -superficieHa : Real
+  -precio : Real
+  -unidad : String
+  +getUbicacion() String
+  +getSuperficieHa() Real
+  +getPrecio() Real
+  +getUnidad() String
+  +crearLoteHipotetico() Lote
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+  -ubicacion : String
+  -superficieHa : Real
+  -hipotetico : Boolean
+  +create(ubicacion : String, superficieHa : Real)
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  -fechaSiembra : Date
+  -densidad : Real
+  +create(l : Lote, e : Especie, cv : Cultivar, fechaSiembra : Date, densidad : Real)
+  +asignarSupuestos(s : SupuestoEconomico)
+  +vincularOferta(o : AvisoAlquilerCampo)
+  +getCostoTotalHa() Real
+  +getPrecioNetoUsd() Real
+}
+class SupuestoEconomico {
+  -precioVentaUsd : Real
+  -costoAlquilerUsdHa : Real
+  +create(precioVenta : Real, moneda : String, gastosComercializacion : Real, costoAlquiler : Real, unidadAlquiler : String)
+  +normalizar(tc : TipoCambio) Boolean
+  +getPrecioVentaUsd() Real
+  +getCostoAlquilerUsdHa() Real
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -rendimientoP50 : Real
+  -margen : Real
+  -rendimientoIndiferencia : Real
+  +calcularRendimientoIndiferencia() Real
+  +getRendimientoP50() Real
+  +getMargen() Real
+  +getRendimientoIndiferencia() Real
+}
+class Modelo
+class Especie
+class Cultivar
+class TipoCambio
+ControladorEvaluarArrendamiento "*" --> "0..1 -avDao" AvisoAlquilerCampoDao
+ControladorEvaluarArrendamiento "*" --> "0..1 -eDao" EspecieDao
+ControladorEvaluarArrendamiento "*" --> "0..1 -cvDao" CultivarDao
+ControladorEvaluarArrendamiento "*" --> "0..1 -tcDao" TipoCambioDao
+ControladorEvaluarArrendamiento "*" --> "0..1 -pdDao" PrediccionDao
+ControladorEvaluarArrendamiento "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorEvaluarArrendamiento "*" --> "0..1 -ofertaActual" AvisoAlquilerCampo
+ControladorEvaluarArrendamiento "1" --> "0..1 -lcHip" LoteCampania
+ControladorEvaluarArrendamiento "*" --> "0..1 -modeloActual" Modelo
+ControladorEvaluarArrendamiento ..> Prediccion
+ControladorEvaluarArrendamiento ..> SupuestoEconomico
+ControladorEvaluarArrendamiento ..> Lote
+AvisoAlquilerCampoDao ..> AvisoAlquilerCampo
+EspecieDao ..> Especie
+CultivarDao ..> Cultivar
+TipoCambioDao ..> TipoCambio
+PrediccionDao ..> Prediccion
+AvisoAlquilerCampo ..> Lote
+SupuestoEconomico ..> TipoCambio
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -especie" Especie
+LoteCampania "*" --> "1 -cultivar" Cultivar
+LoteCampania "*" --> "0..1 -oferta" AvisoAlquilerCampo
+LoteCampania "1" *--> "0..1 -supuestos" SupuestoEconomico
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+Prediccion "*" --> "1 -modelo" Modelo
+`
+});
+
+</script>
+<script>
+// CUU21 a CUU26 – Cosecha, historial, reportes y administración
+window.CU.push({
+  id: 'CUU21', nombre: 'Registrar los resultados de cosecha', controlador: 'ControladorRegistrarCosecha',
+  supuestos: [
+    'El resultado observado se modela como ResultadoCosecha, parte de LoteCampania y separado de las predicciones. La colección cosechas conserva el historial de correcciones (4.a): el resultado anterior queda marcado como no vigente.',
+    'LoteCampania valida el resultado (experto): la superficie cosechada no puede superar la superficie del lote.',
+    'Las adversidades son opcionales (3.a): si no se informan quedan en NULL.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – ingresarResultados', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarCosecha
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant LC as lcActual:LoteCampania
+participant L as lote:Lote
+participant CVG as cosechaVigente:ResultadoCosecha
+Note over UI: UI recibe del actor: idLote + idCampania + fechaCosecha + superficieCosechadaHa + rendimientoKgHa + humedadPct + adversidades
+UI->>+C: ingresarResultados(idLote : Integer, idCampania : Integer, fechaCosecha : Date, superficieCosechadaHa : Real, rendimientoKgHa : Real, humedadPct : Real, adversidades : String)
+C->>+LCD: buscarPorLoteYCampania(idLote : Integer, idCampania : Integer)
+Note right of LCD: JPQL: SELECT lc FROM LoteCampania lc WHERE lc.lote.idLote = ?1 AND lc.campania.idCampania = ?2
+LCD-->>-C: «lcActual : LoteCampania»
+C->>+LC: crearResultado(fechaCosecha : Date, superficieCosechadaHa : Real, rendimientoKgHa : Real, humedadPct : Real, adversidades : String)
+LC->>+L: getSuperficieHa()
+L-->>-LC: «superficieHa : Real»
+Note right of LC: valido = (superficieCosechadaHa <= superficieHa) AND (rendimientoKgHa >= 0) AND (fechaCosecha posterior a fechaSiembra)
+opt valido == true
+  create participant RC as cosechaNueva:ResultadoCosecha
+  LC-->>RC: create(fechaCosecha : Date, superficieCosechadaHa : Real, rendimientoKgHa : Real, humedadPct : Real, adversidades : String)
+end
+LC-->>-C: «cosechaNueva : ResultadoCosecha»
+C-->>-UI: «cosechaNueva : ResultadoCosecha»
+alt cosechaNueva IS NOT NULL
+  UI->>+LC: tieneCosecha()
+  LC-->>-UI: «yaExiste : Boolean»
+  opt yaExiste == true
+    UI->>+LC: getRendimientoObservado()
+    LC->>+CVG: getRendimientoKgHa()
+    CVG-->>-LC: «rendimientoKgHa : Real»
+    LC-->>-UI: «rendimientoAnterior : Real»
+  end
+  Note over UI: UI muestra al actor: resultado declarado (y los valores anteriores si ya existía) para confirmar
+else cosechaNueva IS NULL
+  Note over UI: UI muestra al actor: datos que requieren corrección
+end
+` },
+    { titulo: 'Evento 2 – confirmarResultado', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorRegistrarCosecha
+participant LC as lcActual:LoteCampania
+participant CVG as cosechaVigente:ResultadoCosecha
+participant CS as «multiobjeto» cosechas:ResultadoCosecha
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarResultado()
+C->>+LC: registrarCosecha(cosechaNueva : ResultadoCosecha)
+opt cosechaVigente IS NOT NULL
+  LC->>+CVG: marcarCorregida()
+  Note right of CVG: vigente = false
+  CVG-->>-LC:
+end
+LC->>+CS: add(cosechaNueva : ResultadoCosecha)
+CS-->>-LC:
+Note right of LC: cosechaVigente = cosechaNueva
+LC-->>-C:
+C->>+LCD: save(lcActual : LoteCampania)
+LCD-->>-C:
+C-->>-UI: «lcActual : LoteCampania»
+Note over UI: UI muestra al actor: "Resultado de cosecha registrado"
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorRegistrarCosecha {
+  +ingresarResultados(idLote : Integer, idCampania : Integer, fechaCosecha : Date, superficieCosechadaHa : Real, rendimientoKgHa : Real, humedadPct : Real, adversidades : String) ResultadoCosecha
+  +confirmarResultado() LoteCampania
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +buscarPorLoteYCampania(idLote : Integer, idCampania : Integer) LoteCampania
+  +save(lc : LoteCampania)
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  -fechaSiembra : Date
+  +crearResultado(fechaCosecha : Date, superficieCosechadaHa : Real, rendimientoKgHa : Real, humedadPct : Real, adversidades : String) ResultadoCosecha
+  +tieneCosecha() Boolean
+  +getRendimientoObservado() Real
+  +registrarCosecha(rc : ResultadoCosecha)
+}
+class ResultadoCosecha {
+  -fechaCosecha : Date
+  -superficieCosechadaHa : Real
+  -rendimientoKgHa : Real
+  -humedadPct : Real
+  -adversidades : String
+  -vigente : Boolean
+  +create(fechaCosecha : Date, superficieCosechadaHa : Real, rendimientoKgHa : Real, humedadPct : Real, adversidades : String)
+  +getRendimientoKgHa() Real
+  +marcarCorregida()
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+  -superficieHa : Real
+  +getSuperficieHa() Real
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+}
+ControladorRegistrarCosecha "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorRegistrarCosecha "*" --> "0..1 -lcActual" LoteCampania
+ControladorRegistrarCosecha "1" --> "0..1 -cosechaNueva" ResultadoCosecha
+LoteCampaniaDao ..> LoteCampania
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -campania" Campania
+LoteCampania "1" *--> "* -cosechas" ResultadoCosecha
+LoteCampania "1" --> "0..1 -cosechaVigente" ResultadoCosecha
+`
+});
+
+window.CU.push({
+  id: 'CUU22', nombre: 'Consultar el historial productivo y contrastar resultados', controlador: 'ControladorConsultarHistorial',
+  supuestos: [
+    'El historial de un lote son sus LoteCampania del período, con sus aplicaciones y su cosecha vigente.',
+    'LoteCampania calcula el desvío (experto). Devuelve NULL si falta la cosecha (4.a) o si las bases no son compatibles (4.b): nunca se calcula un desvío engañoso.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – consultarHistorial', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarHistorial
+participant LD as lDao:«Repository» LoteDao
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant HI as historial[i]:LoteCampania
+participant AS as «multiobjeto» aplicaciones:AplicacionInsumo
+Note over UI: UI recibe del actor: idLote + fechaDesde + fechaHasta
+UI->>+C: consultarHistorial(idLote : Integer, fechaDesde : Date, fechaHasta : Date)
+C->>+LD: getOne(idLote : Integer)
+LD-->>-C: «loteActual : Lote»
+C->>+LCD: buscarPorLoteYPeriodo(loteActual : Lote, fechaDesde : Date, fechaHasta : Date)
+Note right of LCD: JPQL: SELECT lc FROM LoteCampania lc WHERE lc.lote = ?1 AND lc.campania.fechaInicio BETWEEN ?2 AND ?3 ORDER BY lc.campania.fechaInicio
+LCD-->>-C: «historial : LoteCampania[*]»
+C-->>-UI: «historial : LoteCampania[*]»
+alt historial IS NOT EMPTY
+  loop Para cada lc en historial
+    UI->>+HI: getIdLoteCampania()
+    HI-->>-UI: «idLoteCampania : Integer»
+    UI->>+HI: getNombreCultivar()
+    HI-->>-UI: «nombreCultivar : String»
+    UI->>+HI: getFechaSiembra()
+    HI-->>-UI: «fechaSiembra : Date»
+    UI->>+HI: getCantidadAplicaciones()
+    HI->>+AS: size()
+    AS-->>-HI: «cantidad : Integer»
+    HI-->>-UI: «cantidadAplicaciones : Integer»
+    UI->>+HI: getRendimientoObservado()
+    HI-->>-UI: «rendimientoObservado : Real»
+  end
+  Note over UI: UI muestra al actor: planificaciones, aplicaciones y cosechas del período
+else historial IS EMPTY
+  Note over UI: UI muestra al actor: "No hay registros en el período"
+end
+` },
+    { titulo: 'Evento 2 – contrastarResultados', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorConsultarHistorial
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant PD as pdDao:«Repository» PrediccionDao
+participant LC as lc:LoteCampania
+participant CVG as cosechaVigente:ResultadoCosecha
+participant P as pred:Prediccion
+Note over UI: UI recibe del actor: idLoteCampania + idPrediccion
+UI->>+C: contrastarResultados(idLoteCampania : Integer, idPrediccion : Integer)
+C->>+LCD: getOne(idLoteCampania : Integer)
+LCD-->>-C: «lc : LoteCampania»
+C->>+PD: getOne(idPrediccion : Integer)
+PD-->>-C: «pred : Prediccion»
+C->>+LC: calcularDesvio(pred : Prediccion)
+Note right of LC: desvio = NULL
+opt cosechaVigente IS NOT NULL
+  LC->>+CVG: getRendimientoKgHa()
+  CVG-->>-LC: «observado : Real»
+  LC->>+P: esComparableCon(lc : LoteCampania)
+  Note right of P: comparable = (loteCampania == lc) AND (unidad == "kg/ha")
+  P-->>-LC: «comparable : Boolean»
+  opt comparable == true
+    LC->>+P: getRendimientoP50()
+    P-->>-LC: «estimado : Real»
+    Note right of LC: desvio = observado - estimado
+  end
+end
+LC-->>-C: «desvio : Real»
+C-->>-UI: «desvio : Real»
+alt desvio IS NOT NULL
+  UI->>+P: getFecha()
+  P-->>-UI: «fecha : Date»
+  UI->>+P: getEntradas()
+  P-->>-UI: «entradas : String»
+  Note over UI: UI muestra al actor: observado + estimado + desvio + fecha y supuestos de la predicción
+else desvio IS NULL
+  Note over UI: UI muestra al actor: historial disponible sin calcular diferencia (falta cosecha o bases incompatibles)
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorConsultarHistorial {
+  +consultarHistorial(idLote : Integer, fechaDesde : Date, fechaHasta : Date) LoteCampania[*]
+  +contrastarResultados(idLoteCampania : Integer, idPrediccion : Integer) Real
+}
+class LoteDao {
+  <<Repository>>
+  +getOne(idLote : Integer) Lote
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +buscarPorLoteYPeriodo(l : Lote, fechaDesde : Date, fechaHasta : Date) LoteCampania[*]
+  +getOne(idLoteCampania : Integer) LoteCampania
+}
+class PrediccionDao {
+  <<Repository>>
+  +getOne(idPrediccion : Integer) Prediccion
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+  -fechaInicio : Date
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+  -fechaSiembra : Date
+  +getIdLoteCampania() Integer
+  +getNombreCultivar() String
+  +getFechaSiembra() Date
+  +getCantidadAplicaciones() Integer
+  +getRendimientoObservado() Real
+  +calcularDesvio(p : Prediccion) Real
+}
+class AplicacionInsumo
+class ResultadoCosecha {
+  -rendimientoKgHa : Real
+  +getRendimientoKgHa() Real
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -fecha : Date
+  -entradas : String
+  -unidad : String
+  -rendimientoP50 : Real
+  +esComparableCon(lc : LoteCampania) Boolean
+  +getRendimientoP50() Real
+  +getFecha() Date
+  +getEntradas() String
+}
+ControladorConsultarHistorial "*" --> "0..1 -lDao" LoteDao
+ControladorConsultarHistorial "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorConsultarHistorial "*" --> "0..1 -pdDao" PrediccionDao
+ControladorConsultarHistorial ..> Lote
+ControladorConsultarHistorial ..> LoteCampania
+ControladorConsultarHistorial ..> Prediccion
+LoteDao ..> Lote
+LoteCampaniaDao ..> LoteCampania
+LoteCampaniaDao ..> Lote
+PrediccionDao ..> Prediccion
+LoteCampania ..> Prediccion
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -campania" Campania
+LoteCampania "1" *--> "* -aplicaciones" AplicacionInsumo
+LoteCampania "1" --> "0..1 -cosechaVigente" ResultadoCosecha
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+`
+});
+
+window.CU.push({
+  id: 'CUU23', nombre: 'Exportar un reporte de resultados', controlador: 'ControladorExportarReporte',
+  supuestos: [
+    'El evento seleccionarResultado se repite por cada resultado a incluir. La selección queda en la colección seleccion del controlador.',
+    'El Reporte no se almacena de forma permanente (cuestión abierta del CU): no tiene DAO.',
+    'Un resultado es histórico (3.a) cuando la planificación se modificó después de calcularlo: el Reporte lo identifica y conserva los supuestos originales.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – seleccionarResultado (se repite por cada resultado)', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorExportarReporte
+participant PD as pdDao:«Repository» PrediccionDao
+participant P as p:Prediccion
+participant SEL as «multiobjeto» seleccion:Prediccion
+Note over UI: UI recibe del actor: idPrediccion
+UI->>+C: seleccionarResultado(idPrediccion : Integer)
+C->>+PD: existsById(idPrediccion : Integer)
+PD-->>-C: «existe : Boolean»
+Note over C: agregado = false
+opt existe == true
+  C->>+PD: getOne(idPrediccion : Integer)
+  PD-->>-C: «p : Prediccion»
+  C->>+P: esAccesiblePara(usuarioLogueado : Usuario)
+  P-->>-C: «agregado : Boolean»
+  opt agregado == true
+    C->>+SEL: add(p : Prediccion)
+    SEL-->>-C:
+  end
+end
+C-->>-UI: «agregado : Boolean»
+Note over UI: UI muestra al actor: resultado agregado (o "No se puede exportar: resultado no disponible o no accesible")
+` },
+    { titulo: 'Evento 2 – exportarReporte', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorExportarReporte
+participant U as usuarioLogueado:Usuario
+participant SI as seleccion[i]:Prediccion
+Note over UI: UI recibe del actor: formato
+UI->>+C: exportarReporte(formato : String)
+C->>+U: habilitaFormato(formato : String)
+Note right of U: Delega en suscripcionActual y plan (ver DSD de CUU06, Evento 3)
+U-->>-C: «habilitado : Boolean»
+opt habilitado == true
+  create participant R as r:Reporte
+  C-->>R: create(formato : String)
+  Note right of R: fecha = date()
+  create participant IT as «multiobjeto» resultados:Prediccion
+  R-->>IT: create()
+  loop Para cada p en seleccion
+    C->>+R: agregarResultado(p : Prediccion)
+    R->>+SI: esHistorica()
+    Note right of SI: historica = fecha anterior a loteCampania.fechaModificacion
+    SI-->>-R: «historica : Boolean»
+    R->>+IT: add(p : Prediccion)
+    IT-->>-R:
+    Note right of R: Si historica == true: contieneHistoricos = true
+    R-->>-C:
+  end
+  C->>+R: generarArchivo()
+  Note right of R: Arma el archivo con entradas, resultados, unidades, fuentes, fecha y versión del modelo de cada resultado
+  R-->>-C: «generado : Boolean»
+end
+C-->>-UI: «r : Reporte»
+alt r IS NOT NULL
+  UI->>+R: getArchivo()
+  R-->>-UI: «archivo : String»
+  Note over UI: UI muestra al actor: archivo para descargar (si archivo IS NULL informa el fallo y permite reintentar)
+else r IS NULL
+  UI->>+U: getFormatosHabilitados()
+  U-->>-UI: «formatosHabilitados : String[*]»
+  Note over UI: UI muestra al actor: formatos habilitados para elegir otro
+end
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorExportarReporte {
+  +seleccionarResultado(idPrediccion : Integer) Boolean
+  +exportarReporte(formato : String) Reporte
+}
+class PrediccionDao {
+  <<Repository>>
+  +existsById(idPrediccion : Integer) Boolean
+  +getOne(idPrediccion : Integer) Prediccion
+}
+class Usuario {
+  -idUsuario : Integer = {@Id @GeneratedValue}
+  +habilitaFormato(formato : String) Boolean
+  +getFormatosHabilitados() String[*]
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -fecha : Date
+  -entradas : String
+  -versionModelo : String
+  +esAccesiblePara(u : Usuario) Boolean
+  +esHistorica() Boolean
+}
+class LoteCampania {
+  -fechaModificacion : Date
+}
+class Reporte {
+  -formato : String
+  -fecha : Date
+  -contieneHistoricos : Boolean
+  -archivo : String
+  +create(formato : String)
+  +agregarResultado(p : Prediccion)
+  +generarArchivo() Boolean
+  +getArchivo() String
+}
+ControladorExportarReporte "*" --> "0..1 -pdDao" PrediccionDao
+ControladorExportarReporte "*" --> "0..1 -usuarioLogueado" Usuario
+ControladorExportarReporte "*" --> "* -seleccion" Prediccion
+ControladorExportarReporte ..> Reporte
+PrediccionDao ..> Prediccion
+Prediccion ..> Usuario
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+Reporte "*" --> "1..* -resultados" Prediccion
+`
+});
+
+window.CU.push({
+  id: 'CUU24', nombre: 'Actualizar los datos de una fuente externa', controlador: 'ControladorActualizarFuente',
+  supuestos: [
+    'El proveedor externo (actor secundario) se accede por la interfaz «Service» ProveedorDatos, que devuelve los registros recibidos (NULL si no responde o deniega el acceso).',
+    'Se agrega la clase CargaDatos (historial de ejecuciones y rechazos, cuestión abierta del CU): guarda válidos y rechazados. ultimaCarga de FuenteDato solo cambia cuando la incorporación se confirma.',
+    'La copia de cada registro válido a su entidad de destino (PrecioGrano, TipoCambio, etc.) depende de la fuente y no se detalla.',
+    'El administrador está autenticado y con permiso (precondición).'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – solicitarActualizacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorActualizarFuente
+participant FD as fDao:«Repository» FuenteDatoDao
+participant PV as proveedor:«Service» ProveedorDatos
+participant RI as registros[i]:RegistroExterno
+participant F as fuenteActual:FuenteDato
+Note over UI: UI recibe del actor: idFuente + fechaDesde + fechaHasta
+UI->>+C: solicitarActualizacion(idFuente : Integer, fechaDesde : Date, fechaHasta : Date)
+C->>+FD: getOne(idFuente : Integer)
+FD-->>-C: «fuenteActual : FuenteDato»
+C->>+PV: obtenerDatos(fuenteActual : FuenteDato, fechaDesde : Date, fechaHasta : Date)
+PV-->>-C: «registros : RegistroExterno[*]»
+opt registros IS NOT NULL
+  create participant CG as cargaActual:CargaDatos
+  C-->>CG: create(fuenteActual : FuenteDato, fechaDesde : Date, fechaHasta : Date)
+  create participant VS as «multiobjeto» validos:RegistroExterno
+  CG-->>VS: create()
+  create participant RS as «multiobjeto» rechazados:RegistroExterno
+  CG-->>RS: create()
+  loop Para cada r en registros
+    C->>+CG: evaluar(r : RegistroExterno)
+    CG->>+RI: esValido()
+    Note right of RI: valido = estructura, fecha y unidad esperadas
+    RI-->>-CG: «valido : Boolean»
+    CG->>+F: yaIncorporado(r : RegistroExterno)
+    F-->>-CG: «duplicado : Boolean»
+    alt valido == true AND duplicado == false
+      CG->>+VS: add(r : RegistroExterno)
+      VS-->>-CG:
+    else valido == false
+      CG->>+RS: add(r : RegistroExterno)
+      RS-->>-CG:
+    end
+    CG-->>-C:
+  end
+end
+C-->>-UI: «cargaActual : CargaDatos»
+alt cargaActual IS NOT NULL
+  UI->>+CG: getCantidadValidos()
+  CG->>+VS: size()
+  VS-->>-CG: «cantidad : Integer»
+  CG-->>-UI: «cantidadValidos : Integer»
+  UI->>+CG: getCantidadRechazados()
+  CG->>+RS: size()
+  RS-->>-CG: «cantidad : Integer»
+  CG-->>-UI: «cantidadRechazados : Integer»
+  Note over UI: UI muestra al actor: resumen de válidos, observaciones y rechazados ("sin novedades" si ambos son 0)
+else cargaActual IS NULL
+  Note over UI: UI muestra al actor: "El proveedor no responde o deniega el acceso" (se conservan los últimos datos válidos)
+end
+` },
+    { titulo: 'Evento 2 – confirmarIncorporacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorActualizarFuente
+participant CG as cargaActual:CargaDatos
+participant VS as «multiobjeto» validos:RegistroExterno
+participant F as fuenteActual:FuenteDato
+participant GD as cgDao:«Repository» CargaDatosDao
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarIncorporacion()
+C->>+CG: confirmar()
+CG->>+VS: isEmpty()
+VS-->>-CG: «sinValidos : Boolean»
+opt sinValidos == false
+  Note right of CG: estado = "incorporada", fechaEjecucion = date()
+  CG->>+F: registrarCarga(fechaEjecucion : Date)
+  Note right of F: ultimaCarga = fechaEjecucion
+  F-->>-CG:
+end
+CG-->>-C: «incorporada : Boolean»
+opt incorporada == true
+  C->>+GD: save(cargaActual : CargaDatos)
+  GD-->>-C:
+end
+C-->>-UI: «incorporada : Boolean»
+Note over UI: UI muestra al actor: resultado y fecha de la actualización (o "No hay datos válidos para incorporar")
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorActualizarFuente {
+  +solicitarActualizacion(idFuente : Integer, fechaDesde : Date, fechaHasta : Date) CargaDatos
+  +confirmarIncorporacion() Boolean
+}
+class FuenteDatoDao {
+  <<Repository>>
+  +getOne(idFuente : Integer) FuenteDato
+}
+class CargaDatosDao {
+  <<Repository>>
+  +save(cg : CargaDatos)
+}
+class ProveedorDatos {
+  <<Service>>
+  +obtenerDatos(f : FuenteDato, fechaDesde : Date, fechaHasta : Date) RegistroExterno[*]
+}
+class FuenteDato {
+  -idFuente : Integer = {@Id @GeneratedValue}
+  -ultimaCarga : Date
+  +yaIncorporado(r : RegistroExterno) Boolean
+  +registrarCarga(fechaEjecucion : Date)
+}
+class CargaDatos {
+  -idCargaDatos : Integer = {@Id @GeneratedValue}
+  -fechaDesde : Date
+  -fechaHasta : Date
+  -fechaEjecucion : Date
+  -estado : String
+  +create(f : FuenteDato, fechaDesde : Date, fechaHasta : Date)
+  +evaluar(r : RegistroExterno)
+  +getCantidadValidos() Integer
+  +getCantidadRechazados() Integer
+  +confirmar() Boolean
+}
+class RegistroExterno {
+  -fecha : Date
+  -unidad : String
+  -valor : Real
+  +esValido() Boolean
+}
+ControladorActualizarFuente "*" --> "0..1 -fDao" FuenteDatoDao
+ControladorActualizarFuente "*" --> "0..1 -cgDao" CargaDatosDao
+ControladorActualizarFuente "*" --> "0..1 -proveedor" ProveedorDatos
+ControladorActualizarFuente "*" --> "0..1 -fuenteActual" FuenteDato
+ControladorActualizarFuente "1" --> "0..1 -cargaActual" CargaDatos
+ControladorActualizarFuente ..> RegistroExterno
+FuenteDatoDao ..> FuenteDato
+CargaDatosDao ..> CargaDatos
+ProveedorDatos ..> RegistroExterno
+ProveedorDatos ..> FuenteDato
+FuenteDato ..> RegistroExterno
+CargaDatos "*" --> "1 -fuente" FuenteDato
+CargaDatos "1" *--> "* -validos" RegistroExterno
+CargaDatos "1" *--> "* -rechazados" RegistroExterno
+`
+});
+
+window.CU.push({
+  id: 'CUU25', nombre: 'Evaluar y habilitar una versión de modelo predictivo', controlador: 'ControladorEvaluarModelo',
+  supuestos: [
+    'Los umbrales de aceptación no se escriben fijos en el DSD: están en la clase CriterioAceptacion (por especie), que AgroCore mantiene.',
+    'Se agrega EvaluacionModelo (evidencia de evaluación) como parte de Modelo, y los atributos estado y ambito en Modelo (cuestión abierta del CU).',
+    'Al habilitar una versión se deshabilita la anterior de la misma especie, que se conserva identificada. Si la candidata no cumple, sigue en uso la versión anterior.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – evaluarVersion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorEvaluarModelo
+participant MD as mDao:«Repository» ModeloDao
+participant KD as ceDao:«Repository» ConjuntoEvaluacionDao
+participant CE as conjunto:ConjuntoEvaluacion
+participant M as candidato:Modelo
+participant EVS as «multiobjeto» evaluaciones:EvaluacionModelo
+Note over UI: UI recibe del actor: idModelo + idConjunto
+UI->>+C: evaluarVersion(idModelo : Integer, idConjunto : Integer)
+C->>+MD: getOne(idModelo : Integer)
+MD-->>-C: «candidato : Modelo»
+C->>+KD: getOne(idConjunto : Integer)
+KD-->>-C: «conjunto : ConjuntoEvaluacion»
+C->>+CE: esCompatibleCon(candidato : Modelo)
+Note right of CE: compatible = (especie == candidato.especie) AND (independienteDelEntrenamiento == true)
+CE-->>-C: «compatible : Boolean»
+opt compatible == true
+  C->>+M: evaluar(conjunto : ConjuntoEvaluacion)
+  Note right of M: Ejecuta el modelo sobre el conjunto y calcula errorMedioPct
+  create participant EV as evaluacionActual:EvaluacionModelo
+  M-->>EV: create(conjunto : ConjuntoEvaluacion, errorMedioPct : Real)
+  Note right of EV: fecha = date()
+  M->>+EVS: add(evaluacionActual : EvaluacionModelo)
+  EVS-->>-M:
+  M-->>-C: «evaluacionActual : EvaluacionModelo»
+  C->>+MD: save(candidato : Modelo)
+  MD-->>-C:
+end
+C-->>-UI: «evaluacionActual : EvaluacionModelo»
+alt evaluacionActual IS NOT NULL
+  UI->>+EV: getErrorMedioPct()
+  EV-->>-UI: «errorMedioPct : Real»
+  UI->>+CE: getPoblacion()
+  CE-->>-UI: «poblacion : Integer»
+  UI->>+CE: getPeriodo()
+  CE-->>-UI: «periodo : String»
+  Note over UI: UI muestra al actor: métricas + población + período de evaluación
+else evaluacionActual IS NULL
+  Note over UI: UI muestra al actor: "Datos no compatibles o evaluación no independiente" (no se habilita la versión)
+end
+` },
+    { titulo: 'Evento 2 – habilitarVersion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorEvaluarModelo
+participant M as candidato:Modelo
+participant RD as crDao:«Repository» CriterioAceptacionDao
+participant EV as evaluacionActual:EvaluacionModelo
+participant CR as criterio:CriterioAceptacion
+participant MD as mDao:«Repository» ModeloDao
+participant MA as anterior:Modelo
+Note over UI: UI recibe del actor: ambito
+UI->>+C: habilitarVersion(ambito : String)
+C->>+M: getEspecie()
+M-->>-C: «especie : Especie»
+C->>+RD: buscarPorEspecie(especie : Especie)
+Note right of RD: JPQL: SELECT cr FROM CriterioAceptacion cr WHERE cr.especie = ?1
+RD-->>-C: «criterio : CriterioAceptacion»
+C->>+EV: cumple(criterio : CriterioAceptacion)
+EV->>+CR: getErrorMaximoPct()
+CR-->>-EV: «errorMaximoPct : Real»
+Note right of EV: cumple = (errorMedioPct <= errorMaximoPct)
+EV-->>-C: «cumple : Boolean»
+opt cumple == true
+  C->>+MD: buscarHabilitadoPorEspecie(especie : Especie)
+  Note right of MD: JPQL: SELECT m FROM Modelo m WHERE m.especie = ?1 AND m.estado = 'habilitado'
+  MD-->>-C: «anterior : Modelo»
+  opt anterior IS NOT NULL
+    C->>+MA: deshabilitar()
+    Note right of MA: estado = "reemplazado"
+    MA-->>-C:
+    C->>+MD: save(anterior : Modelo)
+    MD-->>-C:
+  end
+  C->>+M: habilitar(ambito : String)
+  Note right of M: estado = "habilitado", ambito = ambito, fechaHabilitacion = date()
+  M-->>-C:
+  C->>+MD: save(candidato : Modelo)
+  MD-->>-C:
+end
+C-->>-UI: «cumple : Boolean»
+Note over UI: UI muestra al actor: "Versión habilitada para el ámbito" (o los criterios incumplidos, y se conserva la versión habilitada)
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorEvaluarModelo {
+  +evaluarVersion(idModelo : Integer, idConjunto : Integer) EvaluacionModelo
+  +habilitarVersion(ambito : String) Boolean
+}
+class ModeloDao {
+  <<Repository>>
+  +getOne(idModelo : Integer) Modelo
+  +buscarHabilitadoPorEspecie(e : Especie) Modelo
+  +save(m : Modelo)
+}
+class ConjuntoEvaluacionDao {
+  <<Repository>>
+  +getOne(idConjunto : Integer) ConjuntoEvaluacion
+}
+class CriterioAceptacionDao {
+  <<Repository>>
+  +buscarPorEspecie(e : Especie) CriterioAceptacion
+}
+class Modelo {
+  -idModelo : Integer = {@Id @GeneratedValue}
+  -version : String
+  -estado : String
+  -ambito : String
+  -fechaHabilitacion : Date
+  +getEspecie() Especie
+  +evaluar(ce : ConjuntoEvaluacion) EvaluacionModelo
+  +habilitar(ambito : String)
+  +deshabilitar()
+}
+class EvaluacionModelo {
+  -fecha : Date
+  -errorMedioPct : Real
+  +create(ce : ConjuntoEvaluacion, errorMedioPct : Real)
+  +getErrorMedioPct() Real
+  +cumple(cr : CriterioAceptacion) Boolean
+}
+class ConjuntoEvaluacion {
+  -idConjunto : Integer = {@Id @GeneratedValue}
+  -poblacion : Integer
+  -periodo : String
+  -independienteDelEntrenamiento : Boolean
+  +esCompatibleCon(m : Modelo) Boolean
+  +getPoblacion() Integer
+  +getPeriodo() String
+}
+class CriterioAceptacion {
+  -idCriterio : Integer = {@Id @GeneratedValue}
+  -errorMaximoPct : Real
+  +getErrorMaximoPct() Real
+}
+class Especie
+ControladorEvaluarModelo "*" --> "0..1 -mDao" ModeloDao
+ControladorEvaluarModelo "*" --> "0..1 -ceDao" ConjuntoEvaluacionDao
+ControladorEvaluarModelo "*" --> "0..1 -crDao" CriterioAceptacionDao
+ControladorEvaluarModelo "*" --> "0..1 -candidato" Modelo
+ControladorEvaluarModelo "*" --> "0..1 -evaluacionActual" EvaluacionModelo
+ControladorEvaluarModelo ..> ConjuntoEvaluacion
+ControladorEvaluarModelo ..> CriterioAceptacion
+ControladorEvaluarModelo ..> Especie
+ModeloDao ..> Modelo
+ModeloDao ..> Especie
+ConjuntoEvaluacionDao ..> ConjuntoEvaluacion
+CriterioAceptacionDao ..> CriterioAceptacion
+CriterioAceptacionDao ..> Especie
+ConjuntoEvaluacion ..> Modelo
+EvaluacionModelo ..> CriterioAceptacion
+Modelo "*" --> "1 -especie" Especie
+Modelo "1" *--> "* -evaluaciones" EvaluacionModelo
+EvaluacionModelo "*" --> "1 -conjunto" ConjuntoEvaluacion
+ConjuntoEvaluacion "*" --> "1 -especie" Especie
+CriterioAceptacion "*" --> "1 -especie" Especie
+`
+});
+
+window.CU.push({
+  id: 'CUU26', nombre: 'Comparar una recomendación externa con un escenario propio', controlador: 'ControladorCompararRecomendacionExterna',
+  supuestos: [
+    'La recomendación externa se registra con su procedencia (fuente, fecha, enlace) y nunca se atribuye al sistema.',
+    'RecomendacionExterna calcula la diferencia con el escenario propio (experto). Devuelve NULL si las unidades o el alcance no son compatibles (5.a).',
+    'Si no existe un escenario propio (4.a), la recomendación queda registrada y la comparación pendiente.'
+  ],
+  dsd: [
+    { titulo: 'Evento 1 – ingresarRecomendacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCompararRecomendacionExterna
+participant LCD as lcDao:«Repository» LoteCampaniaDao
+participant VD as cvDao:«Repository» CultivarDao
+Note over UI: UI recibe del actor: idLote + idCampania + fuente + fecha + nombreCultivar + rendimientoEsperado + unidad + enlace
+UI->>+C: ingresarRecomendacion(idLote : Integer, idCampania : Integer, fuente : String, fecha : Date, nombreCultivar : String, rendimientoEsperado : Real, unidad : String, enlace : String)
+C->>+LCD: buscarPorLoteYCampania(idLote : Integer, idCampania : Integer)
+Note right of LCD: JPQL: SELECT lc FROM LoteCampania lc WHERE lc.lote.idLote = ?1 AND lc.campania.idCampania = ?2
+LCD-->>-C: «lcActual : LoteCampania»
+C->>+VD: buscarPorNombre(nombreCultivar : String)
+Note right of VD: JPQL: SELECT c FROM Cultivar c WHERE UPPER(c.nombre) = UPPER(?1)
+VD-->>-C: «cv : Cultivar»
+opt cv IS NOT NULL
+  create participant RE as recActual:RecomendacionExterna
+  C-->>RE: create(lcActual : LoteCampania, cv : Cultivar, fuente : String, fecha : Date, rendimientoEsperado : Real, unidad : String, enlace : String)
+end
+C-->>-UI: «recActual : RecomendacionExterna»
+alt recActual IS NOT NULL
+  UI->>+RE: getCamposFaltantes()
+  RE-->>-UI: «camposFaltantes : String[*]»
+  Note over UI: UI muestra al actor: datos a incorporar + unidades + campos faltantes, para confirmar
+else recActual IS NULL
+  Note over UI: UI muestra al actor: "No se pudo identificar el cultivar: aclare la correspondencia"
+end
+` },
+    { titulo: 'Evento 2 – confirmarIncorporacion', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCompararRecomendacionExterna
+participant RD as reDao:«Repository» RecomendacionExternaDao
+participant PD as pdDao:«Repository» PrediccionDao
+participant EI as escenarios[i]:Prediccion
+Note over UI: UI recibe del actor: confirmación
+UI->>+C: confirmarIncorporacion()
+C->>+RD: save(recActual : RecomendacionExterna)
+RD-->>-C:
+C->>+PD: buscarPorLoteCampania(lcActual : LoteCampania)
+Note right of PD: JPQL: SELECT p FROM Prediccion p WHERE p.loteCampania = ?1
+PD-->>-C: «escenarios : Prediccion[*]»
+C-->>-UI: «escenarios : Prediccion[*]»
+alt escenarios IS NOT EMPTY
+  loop Para cada e en escenarios
+    UI->>+EI: getIdPrediccion()
+    EI-->>-UI: «idPrediccion : Integer»
+    UI->>+EI: getNombreEscenario()
+    EI-->>-UI: «nombreEscenario : String»
+  end
+  Note over UI: UI muestra al actor: recomendación registrada + escenarios propios para elegir
+else escenarios IS EMPTY
+  Note over UI: UI muestra al actor: recomendación registrada. "La comparación queda pendiente"
+end
+` },
+    { titulo: 'Evento 3 – compararConEscenario', code: `
+sequenceDiagram
+participant UI as :UI
+participant C as c:ControladorCompararRecomendacionExterna
+participant PD as pdDao:«Repository» PrediccionDao
+participant RE as recActual:RecomendacionExterna
+participant P as pred:Prediccion
+Note over UI: UI recibe del actor: idPrediccion
+UI->>+C: compararConEscenario(idPrediccion : Integer)
+C->>+PD: getOne(idPrediccion : Integer)
+PD-->>-C: «pred : Prediccion»
+C->>+RE: calcularDiferencia(pred : Prediccion)
+RE->>+P: getUnidad()
+P-->>-RE: «unidadPred : String»
+Note right of RE: diferencia = NULL
+opt unidad == unidadPred
+  RE->>+P: getRendimientoP50()
+  P-->>-RE: «rendimientoP50 : Real»
+  Note right of RE: diferencia = rendimientoEsperado - rendimientoP50
+end
+RE-->>-C: «diferencia : Real»
+C-->>-UI: «diferencia : Real»
+UI->>+RE: getFuente()
+RE-->>-UI: «fuente : String»
+UI->>+P: getEntradas()
+P-->>-UI: «entradas : String»
+Note over UI: UI muestra al actor: ambos antecedentes con sus supuestos + diferencia (o por qué no se calcula si diferencia IS NULL)
+` }
+  ],
+  dcd: `
+classDiagram
+class ControladorCompararRecomendacionExterna {
+  +ingresarRecomendacion(idLote : Integer, idCampania : Integer, fuente : String, fecha : Date, nombreCultivar : String, rendimientoEsperado : Real, unidad : String, enlace : String) RecomendacionExterna
+  +confirmarIncorporacion() Prediccion[*]
+  +compararConEscenario(idPrediccion : Integer) Real
+}
+class LoteCampaniaDao {
+  <<Repository>>
+  +buscarPorLoteYCampania(idLote : Integer, idCampania : Integer) LoteCampania
+}
+class CultivarDao {
+  <<Repository>>
+  +buscarPorNombre(nombreCultivar : String) Cultivar
+}
+class RecomendacionExternaDao {
+  <<Repository>>
+  +save(re : RecomendacionExterna)
+}
+class PrediccionDao {
+  <<Repository>>
+  +buscarPorLoteCampania(lc : LoteCampania) Prediccion[*]
+  +getOne(idPrediccion : Integer) Prediccion
+}
+class RecomendacionExterna {
+  -idRecomendacion : Integer = {@Id @GeneratedValue}
+  -fuente : String
+  -fecha : Date
+  -rendimientoEsperado : Real
+  -unidad : String
+  -enlace : String
+  +create(lc : LoteCampania, cv : Cultivar, fuente : String, fecha : Date, rendimientoEsperado : Real, unidad : String, enlace : String)
+  +getCamposFaltantes() String[*]
+  +calcularDiferencia(p : Prediccion) Real
+  +getFuente() String
+}
+class LoteCampania {
+  -idLoteCampania : Integer = {@Id @GeneratedValue}
+}
+class Lote {
+  -idLote : Integer = {@Id @GeneratedValue}
+}
+class Campania {
+  -idCampania : Integer = {@Id @GeneratedValue}
+}
+class Cultivar {
+  -idCultivar : Integer = {@Id @GeneratedValue}
+  -nombre : String
+}
+class Prediccion {
+  -idPrediccion : Integer = {@Id @GeneratedValue}
+  -nombreEscenario : String
+  -unidad : String
+  -rendimientoP50 : Real
+  -entradas : String
+  +getIdPrediccion() Integer
+  +getNombreEscenario() String
+  +getUnidad() String
+  +getRendimientoP50() Real
+  +getEntradas() String
+}
+ControladorCompararRecomendacionExterna "*" --> "0..1 -lcDao" LoteCampaniaDao
+ControladorCompararRecomendacionExterna "*" --> "0..1 -cvDao" CultivarDao
+ControladorCompararRecomendacionExterna "*" --> "0..1 -reDao" RecomendacionExternaDao
+ControladorCompararRecomendacionExterna "*" --> "0..1 -pdDao" PrediccionDao
+ControladorCompararRecomendacionExterna "*" --> "0..1 -lcActual" LoteCampania
+ControladorCompararRecomendacionExterna "1" --> "0..1 -recActual" RecomendacionExterna
+ControladorCompararRecomendacionExterna ..> Cultivar
+ControladorCompararRecomendacionExterna ..> Prediccion
+LoteCampaniaDao ..> LoteCampania
+CultivarDao ..> Cultivar
+RecomendacionExternaDao ..> RecomendacionExterna
+PrediccionDao ..> Prediccion
+PrediccionDao ..> LoteCampania
+RecomendacionExterna ..> Prediccion
+RecomendacionExterna "*" --> "1 -loteCampania" LoteCampania
+RecomendacionExterna "*" --> "1 -cultivar" Cultivar
+LoteCampania "*" --> "1 -lote" Lote
+LoteCampania "*" --> "1 -campania" Campania
+Prediccion "*" --> "1 -loteCampania" LoteCampania
+`
+});
+
+</script>
+<script>
+// Une los DCD de todos los casos de uso en un único diagrama de clases
+window.unificar = function () {
+  const clases = new Map();     // nombre -> { estereotipo, atributos: Map, metodos: Map }
+  const relaciones = new Map(); // clave -> { a, ma, tipo, mb, b }
+  const clase = n => {
+    if (!clases.has(n)) clases.set(n, { estereotipo: '', atributos: new Map(), metodos: new Map() });
+    return clases.get(n);
+  };
+  const rol = m => (m.match(/-\w+/) || [''])[0];
+
+  window.CU.forEach(cu => {
+    let actual = null;
+    cu.dcd.split('\n').forEach(raw => {
+      const l = raw.trim();
+      let m;
+      if (actual) {
+        if (l === '}') { actual = null; return; }
+        if ((m = l.match(/^<<(\w+)>>$/))) { actual.estereotipo = m[1]; return; }
+        if ((m = l.match(/^[+\-#](\w+)\((.*)\)/))) {
+          // Mismo método = mismo nombre y mismos tipos de parámetros
+          const tipos = m[2].split(',').map(p => (p.split(':')[1] || '').trim()).join(',');
+          const k = m[1] + '(' + tipos + ')';
+          if (!actual.metodos.has(k)) actual.metodos.set(k, l);
+        } else if ((m = l.match(/^[+\-#](\w+)\s*:/))) {
+          if (!actual.atributos.has(m[1])) actual.atributos.set(m[1], l);
+        }
+        return;
+      }
+      if ((m = l.match(/^class (\w+) \{$/))) { actual = clase(m[1]); return; }
+      if ((m = l.match(/^class (\w+)$/))) { clase(m[1]); return; }
+      if ((m = l.match(/^(\w+) (?:"([^"]*)" )?(\*-->|-->|\.\.>) (?:"([^"]*)" )?(\w+)$/))) {
+        const r = { a: m[1], ma: m[2] || '', tipo: m[3], mb: m[4] || '', b: m[5] };
+        clase(r.a); clase(r.b);
+        const k = r.tipo === '..>' ? r.a + '..>' + r.b : r.a + '>' + r.b + rol(r.mb);
+        if (!relaciones.has(k)) relaciones.set(k, r);
+      }
+    });
+  });
+
+  // Una dependencia sobra si ya existe una asociación entre las mismas clases
+  const asociadas = new Set([...relaciones.values()].filter(r => r.tipo !== '..>').map(r => r.a + '>' + r.b));
+  const rels = [...relaciones.values()].filter(r => r.tipo !== '..>' || !asociadas.has(r.a + '>' + r.b));
+
+  const capaDe = (n, c) => n.startsWith('Controlador') ? 'Controladores'
+    : c.estereotipo === 'Service' ? (window.VARIANTE ? 'Servicios' : 'Adaptadores') // sin capa de servicios, «Service» son los sistemas externos
+    : c.estereotipo === 'Repository' ? 'DAO'
+    : c.estereotipo === 'Adapter' ? 'Adaptadores' : 'Dominio';
+  const capas = { Controladores: [], Servicios: [], DAO: [], Adaptadores: [], Dominio: [] };
+  clases.forEach((c, n) => capas[capaDe(n, c)].push(n));
+
+  const pintarClase = (n, sangria) => {
+    const c = clases.get(n);
+    const cuerpo = [...(c.estereotipo ? ['<<' + c.estereotipo + '>>'] : []), ...c.atributos.values(), ...c.metodos.values()];
+    if (!cuerpo.length) return [sangria + 'class ' + n];
+    return [sangria + 'class ' + n + ' {', ...cuerpo.map(x => sangria + '  ' + x), sangria + '}'];
+  };
+  const pintarRel = r => r.a + (r.ma ? ' "' + r.ma + '"' : '') + ' ' + r.tipo + (r.mb ? ' "' + r.mb + '"' : '') + ' ' + r.b;
+
+  const dominio = new Set(capas.Dominio);
+  const dcdDominio = ['classDiagram',
+    ...capas.Dominio.flatMap(n => pintarClase(n, '')),
+    ...rels.filter(r => dominio.has(r.a) && dominio.has(r.b)).map(pintarRel)].join('\n');
+
+  // De izquierda a derecha quedan las capas en columnas: controladores, servicios, DAO y dominio
+  const dcdCompleto = ['classDiagram', 'direction LR',
+    ...Object.keys(capas).flatMap(k => capas[k].flatMap(n => pintarClase(n, ''))),
+    ...rels.map(pintarRel)].join('\n');
+
+  const n = k => capas[k].length;
+  window.CU.push({
+    id: 'DCD', nombre: 'Diagrama de clases unificado', unificado: true,
+    meta: clases.size + ' clases · ' + rels.length + ' relaciones · une los DCD de ' + window.CU.length + ' casos de uso',
+    supuestos: [
+      'Se generó uniendo los DCD de todos los casos de uso: cada clase aparece una sola vez con la suma de los atributos y métodos que usa algún DSD.',
+      'Capas: ' + n('Controladores') + ' controladores, ' + (n('Servicios') ? n('Servicios') + ' servicios, ' : '') + n('DAO') + ' DAO, ' +
+        n('Adaptadores') + ' adaptadores de sistemas externos y ' + n('Dominio') + ' clases de dominio.',
+      'Si dos casos de uso declaran la misma asociación (mismas clases y mismo rol) se conserva una sola. Una dependencia se omite cuando ya existe una asociación entre esas clases.',
+      'El diagrama completo es muy grande y se lee por columnas (controladores a la izquierda, dominio a la derecha): conviene descargarlo en SVG y hacer zoom. El del dominio es el que resume el modelo.'
+    ],
+    bloques: [
+      { titulo: 'DCD unificado · Dominio', code: dcdDominio, file: 'DCD_unificado_dominio' },
+      { titulo: 'DCD unificado · Completo (controladores, servicios, DAO, adaptadores y dominio)', code: dcdCompleto, file: 'DCD_unificado_completo' }
+    ]
+  });
+};
+
+</script>
+<script>
+// Variante MVC + capa de servicios: el controlador solo recibe el evento de la UI y delega en un
+// «Service» por caso de uso, que coordina DAO y dominio y conserva los objetos de la conversación.
+(function () {
+  const primitivos = new Set(['String', 'Integer', 'Real', 'Boolean', 'Date']);
+
+  function dsdConServicio(code, servicio) {
+    const lines = code.trim().replace(/«Service»/g, '«Adapter»').split('\n');
+    let ultimoRetorno = -1, primero = true;
+    lines.forEach((l, i) => { if (/^\s*C-->>-UI:/.test(l)) ultimoRetorno = i; });
+    const out = [];
+    lines.forEach((l, i) => {
+      if (/^participant C as /.test(l)) {
+        out.push(l, 'participant SV as sv:«Service» ' + servicio);
+      } else if (primero && /^\s*UI->>\+C: /.test(l)) {
+        primero = false;
+        out.push(l, l.replace('UI->>+C:', 'C->>+SV:'));
+      } else if (i === ultimoRetorno) {
+        out.push(l.replace('C-->>-UI:', 'SV-->>-C:'), l);
+      } else {
+        out.push(l.replace(/^(\s*)C(-{1,2}>>)/, '$1SV$2')
+                  .replace(/(>>[+-]?)C:/, '$1SV:')
+                  .replace(/^(\s*Note over )C(,|:)/, '$1SV$2'));
+      }
+    });
+    return out.join('\n');
+  }
+
+  function dcdConServicio(code, controlador, servicio) {
+    const L = code.trim().replace(/<<Service>>/g, '<<Adapter>>').split('\n');
+    const ini = L.findIndex(l => l.trim() === 'class ' + controlador + ' {');
+    const fin = L.indexOf('}', ini);
+    const cuerpo = L.slice(ini + 1, fin);
+    const atributos = cuerpo.filter(l => /^\s*-/.test(l));
+    const metodos = cuerpo.filter(l => /^\s*\+/.test(l));
+    // Las asociaciones y dependencias del controlador (DAO, adaptadores, objetos de la conversación) pasan al servicio
+    const resto = L.slice(fin + 1).map(l => l.startsWith(controlador + ' ') ? servicio + l.slice(controlador.length) : l);
+    const retornos = [...new Set(metodos.map(m => (m.match(/\)\s*([A-Za-z]+)(\[\*\])?\s*$/) || [])[1])
+      .filter(t => t && !primitivos.has(t)))];
+    return [
+      'classDiagram',
+      'class ' + controlador + ' {', ...metodos, '}',
+      'class ' + servicio + ' {', '  <<Service>>', ...atributos, ...metodos, '}',
+      ...L.slice(1, ini),
+      ...resto,
+      controlador + ' "1" --> "1 -servicio" ' + servicio,
+      ...retornos.map(t => controlador + ' ..> ' + t)
+    ].join('\n');
+  }
+
+  window.CU.forEach(cu => {
+    const servicio = cu.controlador.replace(/^Controlador/, 'Servicio');
+    cu.servicio = servicio;
+    cu.dsd.forEach(d => { d.code = dsdConServicio(d.code, servicio); });
+    cu.dcd = dcdConServicio(cu.dcd, cu.controlador, servicio);
+    cu.supuestos = [
+      'Capa de servicios: ' + cu.controlador + ' solo recibe el evento de la UI y delega en ' + servicio +
+      ' («Service»), que contiene la lógica del caso de uso: coordina los DAO y los objetos de dominio y decide el resultado. ' +
+      'El servicio tiene alcance de sesión, por eso conserva los objetos de la conversación entre eventos.',
+      ...cu.supuestos.map(s => s
+        .replace(/«Service»/g, '«Adapter»')
+        .replace(/del controlador/g, 'del servicio')
+        .replace(/el controlador/g, 'el servicio')
+        .replace(/El controlador/g, 'El servicio')
+        .replace(/desde la Clase Controladora/g, 'desde el servicio'))
+    ];
+  });
+  window.VARIANTE = 'MVC + capa de servicios';
+})();
+
+</script>
+
+<script>
+mermaid.initialize({
+  startOnLoad:false, theme:'base', securityLevel:'loose', maxTextSize:900000, maxEdges:3000,
+  themeVariables:{ primaryColor:'#ffffff', primaryBorderColor:'#34443b', primaryTextColor:'#1d2a24', lineColor:'#34443b',
+    noteBkgColor:'#fff8d6', noteBorderColor:'#b9a64a', actorBkg:'#ffffff', actorBorder:'#34443b',
+    activationBkgColor:'#ffffff', activationBorderColor:'#34443b', labelBoxBkgColor:'#e6f0ea', labelBoxBorderColor:'#34443b',
+    fontFamily:'Segoe UI, Arial, sans-serif', fontSize:'13px' },
+  sequence:{ mirrorActors:false, useMaxWidth:false, messageMargin:30, noteMargin:8, boxMargin:8, actorMargin:30, width:130 },
+  class:{ useMaxWidth:false }
+});
+
+if (window.unificar) window.unificar();
+const menu = document.getElementById('menu'), main = document.getElementById('main');
+let n = 0;
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+// Parte en varias líneas los textos largos de mensajes y notas para que el DSD no se ensanche
+function wrap(text, max) {
+  const out = []; let line = '';
+  text.split(' ').forEach(w => {
+    if (line && (line + ' ' + w).length > max) { out.push(line); line = w; } else { line = line ? line + ' ' + w : w; }
+  });
+  out.push(line);
+  return out.join('<br/>');
+}
+function prep(code) {
+  code = code.trim();
+  if (!code.startsWith('sequenceDiagram')) return code.replace(/\{(@[^}\n]*)\}/g, '⟦$1⟧');
+  return code.split('\n').map(l => {
+    // Estereotipo arriba y nombre abajo en la línea de vida, como en los apuntes
+    if (/^\s*(create )?participant /.test(l)) return l.replace(/(«[^»]+») ?/, '$1<br/>');
+    const m = l.match(/^(\s*(?:Note [^:]+|\S+?-{1,2}>>[+-]?\S+): )(.+)$/);
+    return m ? m[1] + wrap(m[2], 40) : l;
+  }).join('\n');
+}
+
+function block(title, code, name) {
+  const sec = document.createElement('section');
+  sec.innerHTML = '<h3>' + esc(title) + '</h3><div class="diagram">Dibujando…</div>' +
+    '<div class="tools"><button data-a="fit">Ajustar al ancho</button><button data-a="svg">Descargar SVG</button><button data-a="copy">Copiar código Mermaid</button></div>' +
+    '<details><summary>Ver código Mermaid</summary><pre>' + esc(code.trim()) + '</pre></details>';
+  const box = sec.querySelector('.diagram');
+  // Mermaid no admite llaves dentro de una clase: se sustituyen para dibujar y se restauran en el SVG
+  const src = prep(code);
+  mermaid.render('g' + (++n), src).then(r => { box.innerHTML = r.svg.replace(/⟦/g, '{').replace(/⟧/g, '}'); })
+    .catch(e => {
+      box.innerHTML = '<div class="err">' + esc(String(e.message || e)) + '</div>';
+      document.querySelectorAll('body > [id^="dg"]').forEach(x => x.remove());
+    });
+  sec.querySelector('[data-a=fit]').onclick = ev => {
+    ev.target.textContent = box.classList.toggle('fit') ? 'Tamaño real' : 'Ajustar al ancho';
+  };
+  sec.querySelector('[data-a=svg]').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([box.innerHTML], {type:'image/svg+xml'}));
+    a.download = name + '.svg'; a.click();
+  };
+  sec.querySelector('[data-a=copy]').onclick = ev => {
+    navigator.clipboard.writeText(code.trim()); ev.target.textContent = 'Copiado';
+  };
+  return sec;
+}
+
+function show(i) {
+  const cu = window.CU[i];
+  [...menu.children].forEach((b, k) => b.classList.toggle('on', k === i));
+  main.innerHTML = '<h2>' + esc(cu.unificado ? cu.nombre : cu.id + ' – ' + cu.nombre) + '</h2><p class="meta">' +
+    (cu.unificado ? esc(cu.meta) : 'Controlador: ' + esc(cu.controlador) + (cu.servicio ? ' · Servicio: ' + esc(cu.servicio) : '')) + '</p>';
+  if (cu.supuestos && cu.supuestos.length) {
+    const s = document.createElement('section');
+    s.innerHTML = '<h3>Decisiones de diseño y supuestos</h3><ul>' + cu.supuestos.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    main.appendChild(s);
+  }
+  if (cu.bloques) {
+    cu.bloques.forEach(b => main.appendChild(block(b.titulo, b.code, b.file)));
+  } else {
+    cu.dsd.forEach((d, k) => main.appendChild(block('DSD · ' + d.titulo, d.code, cu.id + '_DSD_evento' + (k + 1))));
+    main.appendChild(block('DCD · ' + cu.id, cu.dcd, cu.id + '_DCD'));
+  }
+  location.hash = cu.id; window.scrollTo(0, 0);
+}
+
+window.CU.forEach((cu, i) => {
+  const b = document.createElement('button');
+  b.innerHTML = '<b>' + cu.id + '</b>' + esc(cu.nombre);
+  b.onclick = () => show(i);
+  menu.appendChild(b);
+});
+if (window.VARIANTE) document.querySelector('nav p').textContent += ' Arquitectura: ' + window.VARIANTE + '.';
+const start = window.CU.findIndex(c => '#' + c.id === location.hash);
+if (window.CU.length) show(start < 0 ? 0 : start);
+</script>
+</body>
+</html>

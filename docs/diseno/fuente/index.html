@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIPF-AE · DSD y DCD</title>
+<style>
+  :root { --bg:#f6f7f4; --panel:#ffffff; --ink:#1d2a24; --muted:#5d6b63; --line:#d9ded8; --accent:#2f6b4f; --accent-soft:#e6f0ea; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .layout { display:grid; grid-template-columns: 290px minmax(0,1fr); min-height:100vh; }
+  nav { background:var(--panel); border-right:1px solid var(--line); padding:18px 12px; position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 8px 2px; }
+  nav p { margin:0 8px 14px; color:var(--muted); font-size:12.5px; }
+  nav button { display:block; width:100%; text-align:left; border:0; background:none; padding:7px 8px; border-radius:6px; cursor:pointer; font:inherit; font-size:13.5px; color:var(--ink); }
+  nav button:hover { background:var(--accent-soft); }
+  nav button.on { background:var(--accent); color:#fff; }
+  nav button b { font-weight:600; margin-right:6px; }
+  main { padding:26px 30px 60px; min-width:0; }
+  h2 { margin:0 0 4px; font-size:22px; }
+  .meta { color:var(--muted); margin:0 0 18px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:0 0 18px; }
+  section h3 { margin:0 0 10px; font-size:16px; color:var(--accent); }
+  section ul { margin:0; padding-left:20px; }
+  .diagram { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .diagram svg { max-width:none !important; height:auto; }
+  .diagram.fit svg { width:100% !important; max-width:100% !important; }
+  .tools { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .tools button { border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 10px; cursor:pointer; font:inherit; font-size:13px; }
+  .tools button:hover { border-color:var(--accent); color:var(--accent); }
+  details { margin-top:10px; }
+  summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  pre { background:#f1f3ef; border-radius:8px; padding:12px; overflow:auto; font:12.5px/1.45 Consolas, monospace; }
+  .err { color:#a12626; white-space:pre-wrap; font:12.5px Consolas, monospace; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; } main { padding:16px; } }
+  @media print { nav, .tools, details { display:none; } .layout { display:block; } section { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav>
+    <h1>SIPF-AE · DSD y DCD</h1>
+    <p>Diagramas de secuencia y de clases de diseño por caso de uso (pautas Diseño de Sistemas, UTN FRRo).</p>
+    <div id="menu"></div>
+  </nav>
+  <main id="main"></main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>window.CU = [];</script>
+<!--DATA-->
+<script src="cu1.js"></script>
+<script src="cu2.js"></script>
+<script src="cu3.js"></script>
+<script src="cu4.js"></script>
+<script src="cu5.js"></script>
+<script src="unificado.js"></script>
+<script src="servicios.js"></script>
+<!--/DATA-->
+<script>
+mermaid.initialize({
+  startOnLoad:false, theme:'base', securityLevel:'loose', maxTextSize:900000, maxEdges:3000,
+  themeVariables:{ primaryColor:'#ffffff', primaryBorderColor:'#34443b', primaryTextColor:'#1d2a24', lineColor:'#34443b',
+    noteBkgColor:'#fff8d6', noteBorderColor:'#b9a64a', actorBkg:'#ffffff', actorBorder:'#34443b',
+    activationBkgColor:'#ffffff', activationBorderColor:'#34443b', labelBoxBkgColor:'#e6f0ea', labelBoxBorderColor:'#34443b',
+    fontFamily:'Segoe UI, Arial, sans-serif', fontSize:'13px' },
+  sequence:{ mirrorActors:false, useMaxWidth:false, messageMargin:30, noteMargin:8, boxMargin:8, actorMargin:30, width:130 },
+  class:{ useMaxWidth:false }
+});
+
+if (window.unificar) window.unificar();
+const menu = document.getElementById('menu'), main = document.getElementById('main');
+let n = 0;
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+// Parte en varias líneas los textos largos de mensajes y notas para que el DSD no se ensanche
+function wrap(text, max) {
+  const out = []; let line = '';
+  text.split(' ').forEach(w => {
+    if (line && (line + ' ' + w).length > max) { out.push(line); line = w; } else { line = line ? line + ' ' + w : w; }
+  });
+  out.push(line);
+  return out.join('<br/>');
+}
+function prep(code) {
+  code = code.trim();
+  if (!code.startsWith('sequenceDiagram')) return code.replace(/\{(@[^}\n]*)\}/g, '⟦$1⟧');
+  return code.split('\n').map(l => {
+    // Estereotipo arriba y nombre abajo en la línea de vida, como en los apuntes
+    if (/^\s*(create )?participant /.test(l)) return l.replace(/(«[^»]+») ?/, '$1<br/>');
+    const m = l.match(/^(\s*(?:Note [^:]+|\S+?-{1,2}>>[+-]?\S+): )(.+)$/);
+    return m ? m[1] + wrap(m[2], 40) : l;
+  }).join('\n');
+}
+
+function block(title, code, name) {
+  const sec = document.createElement('section');
+  sec.innerHTML = '<h3>' + esc(title) + '</h3><div class="diagram">Dibujando…</div>' +
+    '<div class="tools"><button data-a="fit">Ajustar al ancho</button><button data-a="svg">Descargar SVG</button><button data-a="copy">Copiar código Mermaid</button></div>' +
+    '<details><summary>Ver código Mermaid</summary><pre>' + esc(code.trim()) + '</pre></details>';
+  const box = sec.querySelector('.diagram');
+  // Mermaid no admite llaves dentro de una clase: se sustituyen para dibujar y se restauran en el SVG
+  const src = prep(code);
+  mermaid.render('g' + (++n), src).then(r => { box.innerHTML = r.svg.replace(/⟦/g, '{').replace(/⟧/g, '}'); })
+    .catch(e => {
+      box.innerHTML = '<div class="err">' + esc(String(e.message || e)) + '</div>';
+      document.querySelectorAll('body > [id^="dg"]').forEach(x => x.remove());
+    });
+  sec.querySelector('[data-a=fit]').onclick = ev => {
+    ev.target.textContent = box.classList.toggle('fit') ? 'Tamaño real' : 'Ajustar al ancho';
+  };
+  sec.querySelector('[data-a=svg]').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([box.innerHTML], {type:'image/svg+xml'}));
+    a.download = name + '.svg'; a.click();
+  };
+  sec.querySelector('[data-a=copy]').onclick = ev => {
+    navigator.clipboard.writeText(code.trim()); ev.target.textContent = 'Copiado';
+  };
+  return sec;
+}
+
+function show(i) {
+  const cu = window.CU[i];
+  [...menu.children].forEach((b, k) => b.classList.toggle('on', k === i));
+  main.innerHTML = '<h2>' + esc(cu.unificado ? cu.nombre : cu.id + ' – ' + cu.nombre) + '</h2><p class="meta">' +
+    (cu.unificado ? esc(cu.meta) : 'Controlador: ' + esc(cu.controlador) + (cu.servicio ? ' · Servicio: ' + esc(cu.servicio) : '')) + '</p>';
+  if (cu.supuestos && cu.supuestos.length) {
+    const s = document.createElement('section');
+    s.innerHTML = '<h3>Decisiones de diseño y supuestos</h3><ul>' + cu.supuestos.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    main.appendChild(s);
+  }
+  if (cu.bloques) {
+    cu.bloques.forEach(b => main.appendChild(block(b.titulo, b.code, b.file)));
+  } else {
+    cu.dsd.forEach((d, k) => main.appendChild(block('DSD · ' + d.titulo, d.code, cu.id + '_DSD_evento' + (k + 1))));
+    main.appendChild(block('DCD · ' + cu.id, cu.dcd, cu.id + '_DCD'));
+  }
+  location.hash = cu.id; window.scrollTo(0, 0);
+}
+
+window.CU.forEach((cu, i) => {
+  const b = document.createElement('button');
+  b.innerHTML = '<b>' + cu.id + '</b>' + esc(cu.nombre);
+  b.onclick = () => show(i);
+  menu.appendChild(b);
+});
+if (window.VARIANTE) document.querySelector('nav p').textContent += ' Arquitectura: ' + window.VARIANTE + '.';
+const start = window.CU.findIndex(c => '#' + c.id === location.hash);
+if (window.CU.length) show(start < 0 ? 0 : start);
+</script>
+</body>
+</html>
