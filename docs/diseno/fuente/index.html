@@ -60,12 +60,14 @@
 <script>
 mermaid.initialize({
   startOnLoad:false, theme:'base', securityLevel:'loose', maxTextSize:900000, maxEdges:3000,
+  // Rótulos como <text> SVG y no como HTML en <foreignObject>, que otros programas (p. ej. Prism) no importan
+  htmlLabels:false,
   themeVariables:{ primaryColor:'#ffffff', primaryBorderColor:'#34443b', primaryTextColor:'#1d2a24', lineColor:'#34443b',
     noteBkgColor:'#fff8d6', noteBorderColor:'#b9a64a', actorBkg:'#ffffff', actorBorder:'#34443b',
     activationBkgColor:'#ffffff', activationBorderColor:'#34443b', labelBoxBkgColor:'#e6f0ea', labelBoxBorderColor:'#34443b',
     fontFamily:'Segoe UI, Arial, sans-serif', fontSize:'13px' },
   sequence:{ mirrorActors:false, useMaxWidth:false, messageMargin:30, noteMargin:8, boxMargin:8, actorMargin:30, width:130 },
-  class:{ useMaxWidth:false }
+  class:{ useMaxWidth:false, htmlLabels:false }
 });
 
 if (window.unificar) window.unificar();
